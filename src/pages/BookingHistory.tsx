@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,7 +29,7 @@ const BookingHistory = () => {
 
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('bookings')
           .select(`
             id,
@@ -36,26 +37,31 @@ const BookingHistory = () => {
             booking_date,
             start_time,
             end_time,
+            duration_hours,
             created_at,
             courts(name, type)
           `)
           .eq('user_id', user.id)
           .order('booking_date', { ascending: false })
-          .order('start_time', { ascending: true }) as { data: any[] | null, error: any };
+          .order('start_time', { ascending: true });
 
         if (error) throw error;
 
         // Transform the data to include court name and type
         const formattedBookings = data?.map(booking => ({
           id: booking.id,
+          user_id: user.id,
           court_id: booking.court_id,
           court_name: booking.courts.name,
           court_type: booking.courts.type,
           booking_date: booking.booking_date,
           start_time: booking.start_time,
           end_time: booking.end_time,
-          created_at: booking.created_at,
-          user_id: user.id // Add this to match our type
+          duration_hours: booking.duration_hours || 
+            Math.round((new Date(`2000-01-01T${booking.end_time}`).getTime() - 
+            new Date(`2000-01-01T${booking.start_time}`).getTime()) / 
+            (1000 * 60 * 60)),
+          created_at: booking.created_at
         })) || [];
 
         setBookings(formattedBookings);
@@ -76,11 +82,11 @@ const BookingHistory = () => {
     if (!confirm('Are you sure you want to cancel this booking?')) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('bookings')
         .delete()
         .eq('id', bookingId)
-        .eq('user_id', user.id) as { error: any };
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
@@ -158,9 +164,7 @@ const BookingHistory = () => {
                               {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
                             </TableCell>
                             <TableCell>
-                              {Math.round((new Date(`2000-01-01T${booking.end_time}`).getTime() - 
-                                new Date(`2000-01-01T${booking.start_time}`).getTime()) / 
-                                (1000 * 60 * 60))} hour(s)
+                              {booking.duration_hours} hour(s)
                             </TableCell>
                             <TableCell className="text-right">
                               <Button
@@ -211,9 +215,7 @@ const BookingHistory = () => {
                               {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
                             </TableCell>
                             <TableCell>
-                              {Math.round((new Date(`2000-01-01T${booking.end_time}`).getTime() - 
-                                new Date(`2000-01-01T${booking.start_time}`).getTime()) / 
-                                (1000 * 60 * 60))} hour(s)
+                              {booking.duration_hours} hour(s)
                             </TableCell>
                           </TableRow>
                         ))}

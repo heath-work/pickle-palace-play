@@ -50,19 +50,19 @@ const BookingSystem = () => {
       setIsLoading(true);
       try {
         // Fetch courts
-        const { data: courtsData, error: courtsError } = await supabase
+        const { data: courtsData, error: courtsError } = await (supabase as any)
           .from('courts')
-          .select('*') as { data: Court[] | null, error: any };
+          .select('*');
 
         if (courtsError) {
           throw courtsError;
         }
 
         // Fetch time slots
-        const { data: timeSlotsData, error: timeSlotsError } = await supabase
+        const { data: timeSlotsData, error: timeSlotsError } = await (supabase as any)
           .from('time_slots')
           .select('*')
-          .order('start_time') as { data: TimeSlot[] | null, error: any };
+          .order('start_time');
 
         if (timeSlotsError) {
           throw timeSlotsError;
@@ -91,11 +91,11 @@ const BookingSystem = () => {
         const formattedDate = format(bookingDetails.booking_date, 'yyyy-MM-dd');
         
         // Get all bookings for the selected court and date
-        const { data: existingBookings, error } = await supabase
+        const { data: existingBookings, error } = await (supabase as any)
           .from('bookings')
           .select('start_time, end_time')
           .eq('court_id', bookingDetails.court_id)
-          .eq('booking_date', formattedDate) as { data: { start_time: string, end_time: string }[] | null, error: any };
+          .eq('booking_date', formattedDate);
 
         if (error) throw error;
 
@@ -179,7 +179,7 @@ const BookingSystem = () => {
       const endTime = `${endHours.toString().padStart(2, '0')}:${startMinutes.toString().padStart(2, '0')}:00`;
 
       // Insert booking into database
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('bookings')
         .insert({
           user_id: user.id,
@@ -188,7 +188,7 @@ const BookingSystem = () => {
           start_time: selectedTimeSlot.start_time,
           end_time: endTime,
           duration_hours: bookingDetails.duration_hours
-        }) as { error: any };
+        });
 
       if (error) {
         if (error.code === '23505') { // Unique constraint violation
