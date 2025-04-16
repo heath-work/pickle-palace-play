@@ -1,0 +1,97 @@
+
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Menu, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+const Navbar = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  return (
+    <nav className="bg-white shadow-sm sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex items-center">
+            <Link to="/" className="flex-shrink-0 flex items-center">
+              <span className="text-2xl font-bold text-pickleball-blue">Pickle Palace</span>
+            </Link>
+          </div>
+          
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center space-x-4">
+            <Link to="/" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
+              Home
+            </Link>
+            <Link to="/about" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
+              About
+            </Link>
+            <Link to="/membership" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
+              Membership
+            </Link>
+            <Link to="/booking" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
+              Book a Court
+            </Link>
+            <Button className="bg-pickleball-blue hover:bg-blue-600 text-white">
+              Sign Up
+            </Button>
+          </div>
+          
+          {/* Mobile menu button */}
+          <div className="md:hidden flex items-center">
+            <button
+              onClick={toggleMenu}
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-pickleball-blue focus:outline-none"
+            >
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile menu */}
+      {isMenuOpen && (
+        <div className="md:hidden bg-white pb-3 px-2 pt-2">
+          <div className="flex flex-col space-y-2">
+            <Link
+              to="/"
+              className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Home
+            </Link>
+            <Link
+              to="/about"
+              className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              About
+            </Link>
+            <Link
+              to="/membership"
+              className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Membership
+            </Link>
+            <Link
+              to="/booking"
+              className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Book a Court
+            </Link>
+            <Button className="bg-pickleball-blue hover:bg-blue-600 text-white">
+              Sign Up
+            </Button>
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+};
+
+export default Navbar;
