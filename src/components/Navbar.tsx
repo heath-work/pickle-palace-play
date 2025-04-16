@@ -1,14 +1,25 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, User, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, profile } = useAuth();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase();
   };
 
   return (
@@ -35,9 +46,32 @@ const Navbar = () => {
             <Link to="/booking" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
               Book a Court
             </Link>
-            <Button className="bg-pickleball-blue hover:bg-blue-600 text-white">
-              Sign Up
-            </Button>
+            
+            {user ? (
+              <Link to="/auth/profile" className="flex items-center px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
+                <Avatar className="h-8 w-8 mr-2">
+                  <AvatarImage src={profile?.avatar_url || ''} />
+                  <AvatarFallback className="bg-pickleball-blue text-white">
+                    {profile?.full_name ? getInitials(profile.full_name) : user.email?.[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span>Profile</span>
+              </Link>
+            ) : (
+              <>
+                <Link to="/auth/signin">
+                  <Button variant="outline" className="flex items-center">
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/auth/signup">
+                  <Button className="bg-pickleball-blue hover:bg-blue-600 text-white">
+                    Sign Up
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
           
           {/* Mobile menu button */}
@@ -84,9 +118,39 @@ const Navbar = () => {
             >
               Book a Court
             </Link>
-            <Button className="bg-pickleball-blue hover:bg-blue-600 text-white">
-              Sign Up
-            </Button>
+            
+            {user ? (
+              <Link 
+                to="/auth/profile"
+                className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors flex items-center"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Avatar className="h-6 w-6 mr-2">
+                  <AvatarImage src={profile?.avatar_url || ''} />
+                  <AvatarFallback className="bg-pickleball-blue text-white text-xs">
+                    {profile?.full_name ? getInitials(profile.full_name) : user.email?.[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                Profile
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/auth/signin"
+                  className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/auth/signup"
+                  className="px-3 py-2 text-pickleball-blue hover:text-blue-600 transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

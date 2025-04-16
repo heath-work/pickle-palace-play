@@ -10,6 +10,10 @@ import About from "./pages/About";
 import Membership from "./pages/Membership";
 import Booking from "./pages/Booking";
 import NotFound from "./pages/NotFound";
+import SignInPage from "./pages/auth/SignIn";
+import SignUpPage from "./pages/auth/SignUp";
+import ProfilePage from "./pages/auth/Profile";
+import { AuthProvider } from "./contexts/AuthContext";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -18,20 +22,25 @@ const App = () => {
   return (
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/membership" element={<Membership />} />
-              <Route path="/booking" element={<Booking />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/membership" element={<Membership />} />
+                <Route path="/booking" element={<Booking />} />
+                <Route path="/auth/signin" element={<SignInPage />} />
+                <Route path="/auth/signup" element={<SignUpPage />} />
+                <Route path="/auth/profile" element={<ProfilePage />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </React.StrictMode>
   );
