@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,17 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-type Booking = {
-  id: string;
-  court_id: number;
-  court_name: string;
-  court_type: string;
-  booking_date: string;
-  start_time: string;
-  end_time: string;
-  created_at: string;
-};
+import { Booking } from '@/types/supabase';
 
 const BookingHistory = () => {
   const { user } = useAuth();
@@ -52,12 +41,12 @@ const BookingHistory = () => {
           `)
           .eq('user_id', user.id)
           .order('booking_date', { ascending: false })
-          .order('start_time', { ascending: true });
+          .order('start_time', { ascending: true }) as { data: any[] | null, error: any };
 
         if (error) throw error;
 
         // Transform the data to include court name and type
-        const formattedBookings = data.map(booking => ({
+        const formattedBookings = data?.map(booking => ({
           id: booking.id,
           court_id: booking.court_id,
           court_name: booking.courts.name,
@@ -65,8 +54,9 @@ const BookingHistory = () => {
           booking_date: booking.booking_date,
           start_time: booking.start_time,
           end_time: booking.end_time,
-          created_at: booking.created_at
-        }));
+          created_at: booking.created_at,
+          user_id: user.id // Add this to match our type
+        })) || [];
 
         setBookings(formattedBookings);
       } catch (error) {
@@ -90,7 +80,7 @@ const BookingHistory = () => {
         .from('bookings')
         .delete()
         .eq('id', bookingId)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id) as { error: any };
 
       if (error) throw error;
 

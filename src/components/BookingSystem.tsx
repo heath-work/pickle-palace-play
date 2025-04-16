@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Clock } from 'lucide-react';
@@ -21,18 +20,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-
-type Court = {
-  id: number;
-  name: string;
-  type: string;
-};
-
-type TimeSlot = {
-  id: number;
-  start_time: string;
-  end_time: string;
-};
+import { Court, TimeSlot } from '@/types/supabase';
 
 type BookingDetails = {
   court_id: number | null;
@@ -64,7 +52,7 @@ const BookingSystem = () => {
         // Fetch courts
         const { data: courtsData, error: courtsError } = await supabase
           .from('courts')
-          .select('*');
+          .select('*') as { data: Court[] | null, error: any };
 
         if (courtsError) {
           throw courtsError;
@@ -74,7 +62,7 @@ const BookingSystem = () => {
         const { data: timeSlotsData, error: timeSlotsError } = await supabase
           .from('time_slots')
           .select('*')
-          .order('start_time');
+          .order('start_time') as { data: TimeSlot[] | null, error: any };
 
         if (timeSlotsError) {
           throw timeSlotsError;
@@ -107,7 +95,7 @@ const BookingSystem = () => {
           .from('bookings')
           .select('start_time, end_time')
           .eq('court_id', bookingDetails.court_id)
-          .eq('booking_date', formattedDate);
+          .eq('booking_date', formattedDate) as { data: { start_time: string, end_time: string }[] | null, error: any };
 
         if (error) throw error;
 
@@ -117,7 +105,8 @@ const BookingSystem = () => {
             // Check if the time slot overlaps with any existing booking
             return (
               booking.start_time <= slot.start_time && booking.end_time > slot.start_time ||
-              booking.start_time < slot.end_time && booking.end_time >= slot.end_time
+              booking.start_time < slot.end_time && booking.end_time >= slot.end_time ||
+              slot.start_time <= booking.start_time && slot.end_time > booking.start_time
             );
           });
           return isSlotAvailable;
@@ -199,7 +188,7 @@ const BookingSystem = () => {
           start_time: selectedTimeSlot.start_time,
           end_time: endTime,
           duration_hours: bookingDetails.duration_hours
-        });
+        }) as { error: any };
 
       if (error) {
         if (error.code === '23505') { // Unique constraint violation
