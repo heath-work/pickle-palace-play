@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Court, TimeSlot } from '@/types/supabase';
+import { Court, TimeSlot, Booking } from '@/types/supabase';
 
 type BookingDetails = {
   court_id: number | null;
@@ -44,32 +44,27 @@ const BookingSystem = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
 
-  // Fetch courts and time slots on component mount
   useEffect(() => {
     const fetchCourtsAndTimeSlots = async () => {
       setIsLoading(true);
       try {
         // Fetch courts
-        const { data: courtsData, error: courtsError } = await (supabase as any)
+        const { data: courtsData, error: courtsError } = await supabase
           .from('courts')
           .select('*');
 
-        if (courtsError) {
-          throw courtsError;
-        }
+        if (courtsError) throw courtsError;
 
         // Fetch time slots
-        const { data: timeSlotsData, error: timeSlotsError } = await (supabase as any)
+        const { data: timeSlotsData, error: timeSlotsError } = await supabase
           .from('time_slots')
           .select('*')
           .order('start_time');
 
-        if (timeSlotsError) {
-          throw timeSlotsError;
-        }
+        if (timeSlotsError) throw timeSlotsError;
 
-        setCourts(courtsData || []);
-        setTimeSlots(timeSlotsData || []);
+        setCourts(courtsData as Court[] || []);
+        setTimeSlots(timeSlotsData as TimeSlot[] || []);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Failed to load booking data');
@@ -81,7 +76,6 @@ const BookingSystem = () => {
     fetchCourtsAndTimeSlots();
   }, []);
 
-  // Check available time slots when court and date are selected
   useEffect(() => {
     const checkAvailability = async () => {
       if (!bookingDetails.court_id || !bookingDetails.booking_date) return;
@@ -91,7 +85,7 @@ const BookingSystem = () => {
         const formattedDate = format(bookingDetails.booking_date, 'yyyy-MM-dd');
         
         // Get all bookings for the selected court and date
-        const { data: existingBookings, error } = await (supabase as any)
+        const { data: existingBookings, error } = await supabase
           .from('bookings')
           .select('start_time, end_time')
           .eq('court_id', bookingDetails.court_id)
@@ -178,8 +172,7 @@ const BookingSystem = () => {
       const endHours = startHours + bookingDetails.duration_hours;
       const endTime = `${endHours.toString().padStart(2, '0')}:${startMinutes.toString().padStart(2, '0')}:00`;
 
-      // Insert booking into database
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('bookings')
         .insert({
           user_id: user.id,
@@ -190,12 +183,7 @@ const BookingSystem = () => {
           duration_hours: bookingDetails.duration_hours
         });
 
-      if (error) {
-        if (error.code === '23505') { // Unique constraint violation
-          throw new Error('This court is already booked for the selected time');
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       toast.success('Court booked successfully!', {
         description: `You have booked ${courts.find(c => c.id === bookingDetails.court_id)?.name} on ${format(bookingDetails.booking_date, 'PPP')} at ${selectedTimeSlot.start_time.substring(0, 5)}`,

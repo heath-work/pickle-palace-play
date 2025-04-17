@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,7 +28,7 @@ const BookingHistory = () => {
 
       setIsLoading(true);
       try {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from('bookings')
           .select(`
             id,
@@ -52,15 +51,12 @@ const BookingHistory = () => {
           id: booking.id,
           user_id: user.id,
           court_id: booking.court_id,
-          court_name: booking.courts.name,
-          court_type: booking.courts.type,
+          court_name: booking.courts?.name,
+          court_type: booking.courts?.type,
           booking_date: booking.booking_date,
           start_time: booking.start_time,
           end_time: booking.end_time,
-          duration_hours: booking.duration_hours || 
-            Math.round((new Date(`2000-01-01T${booking.end_time}`).getTime() - 
-            new Date(`2000-01-01T${booking.start_time}`).getTime()) / 
-            (1000 * 60 * 60)),
+          duration_hours: booking.duration_hours,
           created_at: booking.created_at
         })) || [];
 
@@ -82,7 +78,7 @@ const BookingHistory = () => {
     if (!confirm('Are you sure you want to cancel this booking?')) return;
 
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('bookings')
         .delete()
         .eq('id', bookingId)
