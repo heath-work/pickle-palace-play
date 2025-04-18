@@ -22,18 +22,20 @@ const TodaySessions = ({ courts, availableTimeSlots, onSessionSelect }: TodaySes
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {availableTimeSlots[court.id]?.map((slot) => (
-                  <button
-                    key={slot.id}
-                    onClick={() => onSessionSelect(court.id, slot.id)}
-                    className="w-full p-2 text-left rounded-md hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex justify-between items-center">
-                      <span>{format(new Date(`2000-01-01T${slot.start_time}`), 'h:mm a')}</span>
-                      <span className="text-green-600 text-sm">Available</span>
-                    </div>
-                  </button>
-                )) || (
+                {availableTimeSlots[court.id]?.length > 0 ? (
+                  availableTimeSlots[court.id].map((slot) => (
+                    <button
+                      key={slot.id}
+                      onClick={() => onSessionSelect(court.id, slot.id)}
+                      className="w-full p-2 text-left rounded-md hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span>{format(new Date(`2000-01-01T${slot.start_time}`), 'h:mm a')}</span>
+                        <span className="text-green-600 text-sm">Available</span>
+                      </div>
+                    </button>
+                  ))
+                ) : (
                   <p className="text-gray-500 text-sm">No available slots today</p>
                 )}
               </div>

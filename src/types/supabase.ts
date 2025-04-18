@@ -29,4 +29,8 @@ export type Booking = {
   notes?: string;
   created_at?: string;
   updated_at?: string;
+  courts?: {
+    name: string;
+    type: string;
+  };
 };

@@ -66,7 +66,13 @@ const ProfilePage = () => {
           .limit(5);
 
         if (error) throw error;
-        setUpcomingBookings(data || []);
+        
+        const bookingsWithUserId = data?.map(booking => ({
+          ...booking,
+          user_id: user.id
+        })) || [];
+        
+        setUpcomingBookings(bookingsWithUserId as Booking[]);
       } catch (error) {
         console.error('Error fetching bookings:', error);
         toast.error('Failed to load upcoming bookings');
