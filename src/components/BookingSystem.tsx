@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useBooking } from '@/hooks/useBooking';
 import TodaySessions from './TodaySessions';
 import BookingForm from './BookingForm';
+import BookingCalendar from './BookingCalendar';
 
 const BookingSystem = () => {
   const { user } = useAuth();
@@ -130,27 +131,54 @@ const BookingSystem = () => {
   return (
     <div className="py-12 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <TodaySessions 
-          courts={courts}
-          availableTimeSlots={todayAvailableTimeSlots}
-          onSessionSelect={handleSessionSelect}
-        />
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <BookingForm
-            date={date}
-            courts={courts}
-            timeSlots={timeSlots}
-            availableTimeSlots={availableTimeSlots}
-            bookingDetails={bookingDetails}
-            isLoading={isLoading}
-            isCheckingAvailability={isCheckingAvailability}
-            onDateSelect={handleDateSelect}
-            onCourtSelect={handleCourtSelect}
-            onTimeSlotSelect={handleTimeSlotSelect}
-            onDurationSelect={handleDurationSelect}
-            onBookingSubmit={handleBooking}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <div className="space-y-8">
+              <BookingForm
+                date={date}
+                courts={courts}
+                timeSlots={timeSlots}
+                availableTimeSlots={availableTimeSlots}
+                bookingDetails={bookingDetails}
+                isLoading={isLoading}
+                isCheckingAvailability={isCheckingAvailability}
+                onDateSelect={handleDateSelect}
+                onCourtSelect={handleCourtSelect}
+                onTimeSlotSelect={handleTimeSlotSelect}
+                onDurationSelect={handleDurationSelect}
+                onBookingSubmit={handleBooking}
+              />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Select Date</h3>
+                  <BookingCalendar
+                    selectedDate={date}
+                    onDateSelect={handleDateSelect}
+                  />
+                </div>
+                <div>
+                  <TodaySessions 
+                    courts={courts}
+                    availableTimeSlots={todayAvailableTimeSlots}
+                    onSessionSelect={handleSessionSelect}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="lg:col-span-1">
+            <div className="bg-gray-50 p-6 rounded-lg sticky top-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Booking Information</h3>
+              <div className="space-y-4 text-sm text-gray-600">
+                <p>• Select your preferred date and court</p>
+                <p>• Choose an available time slot</p>
+                <p>• Book up to 2 hours per session</p>
+                <p>• Cancellations available up to 24h before</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

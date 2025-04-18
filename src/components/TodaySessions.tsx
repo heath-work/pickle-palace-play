@@ -2,7 +2,9 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { Court, TimeSlot } from '@/types/supabase';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Clock, CalendarClock } from 'lucide-react';
 
 interface TodaySessionsProps {
   courts: Court[];
@@ -12,38 +14,38 @@ interface TodaySessionsProps {
 
 const TodaySessions = ({ courts, availableTimeSlots, onSessionSelect }: TodaySessionsProps) => {
   return (
-    <div className="mb-8">
-      <h2 className="text-2xl font-bold mb-4">Today's Sessions</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {courts.map((court) => (
-          <Card key={court.id} className="w-full">
-            <CardHeader>
-              <CardTitle className="text-lg">{court.name}</CardTitle>
-            </CardHeader>
-            <CardContent>
+    <Card className="w-full">
+      <CardContent className="p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <CalendarClock className="h-5 w-5 text-muted-foreground" />
+          <h2 className="text-lg font-semibold">Available Today</h2>
+        </div>
+        <ScrollArea className="h-[300px] pr-4">
+          {courts.map((court) => (
+            <div key={court.id} className="mb-6 last:mb-0">
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">{court.name}</h3>
               <div className="space-y-2">
                 {availableTimeSlots[court.id]?.length > 0 ? (
                   availableTimeSlots[court.id].map((slot) => (
                     <button
                       key={slot.id}
                       onClick={() => onSessionSelect(court.id, slot.id)}
-                      className="w-full p-2 text-left rounded-md hover:bg-gray-100 transition-colors"
+                      className="w-full flex items-center gap-3 p-3 text-left rounded-md hover:bg-accent hover:text-accent-foreground transition-colors border border-border"
                     >
-                      <div className="flex justify-between items-center">
-                        <span>{format(new Date(`2000-01-01T${slot.start_time}`), 'h:mm a')}</span>
-                        <span className="text-green-600 text-sm">Available</span>
-                      </div>
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="flex-1">{format(new Date(`2000-01-01T${slot.start_time}`), 'h:mm a')}</span>
+                      <span className="text-sm text-green-600 font-medium">Available</span>
                     </button>
                   ))
                 ) : (
-                  <p className="text-gray-500 text-sm">No available slots today</p>
+                  <p className="text-sm text-muted-foreground py-2">No available slots today</p>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
+            </div>
+          ))}
+        </ScrollArea>
+      </CardContent>
+    </Card>
   );
 };
 
