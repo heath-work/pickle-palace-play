@@ -132,39 +132,39 @@ const BookingSystem = () => {
     <div className="py-12 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <div className="space-y-8">
-              <BookingForm
-                date={date}
-                courts={courts}
-                timeSlots={timeSlots}
-                availableTimeSlots={availableTimeSlots}
-                bookingDetails={bookingDetails}
-                isLoading={isLoading}
-                isCheckingAvailability={isCheckingAvailability}
-                onDateSelect={handleDateSelect}
-                onCourtSelect={handleCourtSelect}
-                onTimeSlotSelect={handleTimeSlotSelect}
-                onDurationSelect={handleDurationSelect}
-                onBookingSubmit={handleBooking}
-              />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Select Date</h3>
-                  <BookingCalendar
-                    selectedDate={date}
-                    onDateSelect={handleDateSelect}
-                  />
-                </div>
-                <div>
-                  <TodaySessions 
-                    courts={courts}
-                    availableTimeSlots={todayAvailableTimeSlots}
-                    onSessionSelect={handleSessionSelect}
-                  />
-                </div>
+          <div className="lg:col-span-2 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Select Date</h3>
+                <BookingCalendar
+                  selectedDate={date}
+                  onDateSelect={handleDateSelect}
+                />
               </div>
+              <div>
+                <BookingForm
+                  date={date}
+                  courts={courts}
+                  timeSlots={timeSlots}
+                  availableTimeSlots={availableTimeSlots}
+                  bookingDetails={bookingDetails}
+                  isLoading={isLoading}
+                  isCheckingAvailability={isCheckingAvailability}
+                  onDateSelect={handleDateSelect}
+                  onCourtSelect={handleCourtSelect}
+                  onTimeSlotSelect={handleTimeSlotSelect}
+                  onDurationSelect={handleDurationSelect}
+                  onBookingSubmit={handleBooking}
+                />
+              </div>
+            </div>
+            
+            <div className="w-full">
+              <TodaySessions 
+                courts={courts}
+                availableTimeSlots={todayAvailableTimeSlots}
+                onSessionSelect={handleSessionSelect}
+              />
             </div>
           </div>
           
@@ -172,10 +172,33 @@ const BookingSystem = () => {
             <div className="bg-gray-50 p-6 rounded-lg sticky top-6">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Booking Information</h3>
               <div className="space-y-4 text-sm text-gray-600">
-                <p>• Select your preferred date and court</p>
-                <p>• Choose an available time slot</p>
-                <p>• Book up to 2 hours per session</p>
-                <p>• Cancellations available up to 24h before</p>
+                <p className="flex items-center space-x-2">
+                  <span className="font-medium">Court:</span>
+                  <span>{courts.find(c => c.id === bookingDetails.court_id)?.name || 'Not selected'}</span>
+                </p>
+                <p className="flex items-center space-x-2">
+                  <span className="font-medium">Date:</span>
+                  <span>{bookingDetails.booking_date ? format(bookingDetails.booking_date, 'PPP') : 'Not selected'}</span>
+                </p>
+                <p className="flex items-center space-x-2">
+                  <span className="font-medium">Time:</span>
+                  <span>
+                    {bookingDetails.time_slot_id 
+                      ? timeSlots.find(t => t.id === bookingDetails.time_slot_id)?.start_time.substring(0, 5)
+                      : 'Not selected'}
+                  </span>
+                </p>
+                <p className="flex items-center space-x-2">
+                  <span className="font-medium">Duration:</span>
+                  <span>{bookingDetails.duration_hours} hour{bookingDetails.duration_hours > 1 ? 's' : ''}</span>
+                </p>
+                <div className="pt-4 border-t border-gray-200">
+                  <ul className="space-y-2">
+                    <li>• Cancellations available up to 24h before</li>
+                    <li>• Please arrive 10 minutes early</li>
+                    <li>• Equipment rental available on site</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
