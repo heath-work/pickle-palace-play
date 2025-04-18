@@ -2,18 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import BookingCalendar from './BookingCalendar';
+import TodaySessions from './TodaySessions';
 import { Court, TimeSlot, Booking } from '@/types/supabase';
 
 type BookingDetails = {
@@ -29,6 +24,7 @@ const BookingSystem = () => {
   const [courts, setCourts] = useState<Court[]>([]);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
+  const [todayAvailableTimeSlots, setTodayAvailableTimeSlots] = useState<Record<number, TimeSlot[]>>({});
   const [bookingDetails, setBookingDetails] = useState<BookingDetails>({
     court_id: null,
     booking_date: null,
@@ -69,20 +65,23 @@ const BookingSystem = () => {
   }, []);
 
   useEffect(() => {
-    const checkAvailability = async () => {
-      if (!bookingDetails.court_id || !bookingDetails.booking_date) return;
+    const checkTodayAvailability = async () => {
+      if (!courts.length || !timeSlots.length) return;
       
-      setIsCheckingAvailability(true);
-      try {
-        const formattedDate = format(bookingDetails.booking_date, 'yyyy-MM-dd');
-        
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const availabilityByCourt: Record<number, TimeSlot[]> = {};
+      
+      for (const court of courts) {
         const { data: existingBookings, error } = await supabase
           .from('bookings')
           .select('start_time, end_time')
-          .eq('court_id', bookingDetails.court_id)
-          .eq('booking_date', formattedDate);
+          .eq('court_id', court.id)
+          .eq('booking_date', today);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error checking availability:', error);
+          continue;
+        }
 
         const available = timeSlots.filter(slot => {
           const isSlotAvailable = !existingBookings?.some(booking => {
@@ -95,17 +94,14 @@ const BookingSystem = () => {
           return isSlotAvailable;
         });
 
-        setAvailableTimeSlots(available);
-      } catch (error) {
-        console.error('Error checking availability:', error);
-        toast.error('Failed to check court availability');
-      } finally {
-        setIsCheckingAvailability(false);
+        availabilityByCourt[court.id] = available;
       }
+
+      setTodayAvailableTimeSlots(availabilityByCourt);
     };
 
-    checkAvailability();
-  }, [bookingDetails.court_id, bookingDetails.booking_date, timeSlots]);
+    checkTodayAvailability();
+  }, [courts, timeSlots]);
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
     setDate(selectedDate);
@@ -135,6 +131,17 @@ const BookingSystem = () => {
     setBookingDetails(prev => ({
       ...prev,
       duration_hours: parseInt(duration)
+    }));
+  };
+
+  const handleSessionSelect = (courtId: number, timeSlotId: number) => {
+    const today = new Date();
+    setDate(today);
+    setBookingDetails(prev => ({
+      ...prev,
+      court_id: courtId,
+      booking_date: today,
+      time_slot_id: timeSlotId
     }));
   };
 
@@ -215,6 +222,12 @@ const BookingSystem = () => {
             Reserve your court time in just a few clicks.
           </p>
         </div>
+
+        <TodaySessions 
+          courts={courts}
+          availableTimeSlots={todayAvailableTimeSlots}
+          onSessionSelect={handleSessionSelect}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">

@@ -1,24 +1,20 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Navigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { Booking } from '@/types/supabase';
 
 const formSchema = z.object({
   username: z.string().min(3, { message: 'Username must be at least 3 characters' }),
@@ -31,6 +27,7 @@ type ProfileFormValues = z.infer<typeof formSchema>;
 const ProfilePage = () => {
   const { user, profile, updateProfile, signOut, isLoading } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
+  const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(formSchema),
@@ -45,6 +42,59 @@ const ProfilePage = () => {
       avatar_url: profile?.avatar_url || '',
     },
   });
+
+  useEffect(() => {
+    const fetchUpcomingBookings = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('bookings')
+          .select(`
+            id,
+            court_id,
+            booking_date,
+            start_time,
+            end_time,
+            duration_hours,
+            courts(name, type)
+          `)
+          .eq('user_id', user.id)
+          .gte('booking_date', format(new Date(), 'yyyy-MM-dd'))
+          .order('booking_date', { ascending: true })
+          .order('start_time', { ascending: true })
+          .limit(5);
+
+        if (error) throw error;
+        setUpcomingBookings(data || []);
+      } catch (error) {
+        console.error('Error fetching bookings:', error);
+        toast.error('Failed to load upcoming bookings');
+      }
+    };
+
+    fetchUpcomingBookings();
+  }, [user]);
+
+  const handleCancelBooking = async (bookingId: string) => {
+    if (!user || !confirm('Are you sure you want to cancel this booking?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', bookingId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setUpcomingBookings(prev => prev.filter(booking => booking.id !== bookingId));
+      toast.success('Booking cancelled successfully');
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      toast.error('Failed to cancel booking');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -156,6 +206,42 @@ const ProfilePage = () => {
               </Form>
             </CardContent>
           </Card>
+
+          <div className="mt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Upcoming Bookings</CardTitle>
+                <CardDescription>Your next scheduled court sessions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {upcomingBookings.length === 0 ? (
+                  <p className="text-gray-500">No upcoming bookings</p>
+                ) : (
+                  <div className="space-y-4">
+                    {upcomingBookings.map((booking) => (
+                      <div key={booking.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium">{booking.courts?.name} ({booking.courts?.type})</p>
+                          <p className="text-sm text-gray-600">
+                            {format(new Date(booking.booking_date), 'PPP')} at{' '}
+                            {format(new Date(`2000-01-01T${booking.start_time}`), 'h:mm a')}
+                          </p>
+                        </div>
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={() => handleCancelBooking(booking.id)}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Cancel
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </Layout>
