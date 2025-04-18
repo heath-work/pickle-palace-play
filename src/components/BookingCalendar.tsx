@@ -55,7 +55,13 @@ const BookingCalendar = ({ selectedDate, onDateSelect }: BookingCalendarProps) =
           fontWeight: 'bold'
         }
       }}
-      disabled={(date) => date < new Date()}
+      disabled={(date) => {
+        // Allow today and future dates, disable past dates
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        date.setHours(0, 0, 0, 0);
+        return date < today;
+      }}
       initialFocus
     />
   );

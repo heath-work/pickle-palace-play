@@ -110,14 +110,56 @@ const BookingSystem = () => {
       booking_date: selectedDate || null,
       time_slot_id: null
     }));
+    
+    if (selectedDate && bookingDetails.court_id) {
+      checkAvailability(bookingDetails.court_id, selectedDate);
+    }
   };
 
   const handleCourtSelect = (courtId: string) => {
+    const parsedCourtId = parseInt(courtId);
     setBookingDetails(prev => ({
       ...prev,
-      court_id: parseInt(courtId),
+      court_id: parsedCourtId,
       time_slot_id: null
     }));
+    
+    if (date && parsedCourtId) {
+      checkAvailability(parsedCourtId, date);
+    }
+  };
+
+  const checkAvailability = async (courtId: number, selectedDate: Date) => {
+    setIsCheckingAvailability(true);
+    try {
+      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+      
+      const { data: existingBookings, error } = await supabase
+        .from('bookings')
+        .select('start_time, end_time')
+        .eq('court_id', courtId)
+        .eq('booking_date', formattedDate);
+
+      if (error) throw error;
+
+      const available = timeSlots.filter(slot => {
+        const isSlotAvailable = !existingBookings?.some(booking => {
+          return (
+            booking.start_time <= slot.start_time && booking.end_time > slot.start_time ||
+            booking.start_time < slot.end_time && booking.end_time >= slot.end_time ||
+            slot.start_time <= booking.start_time && slot.end_time > booking.start_time
+          );
+        });
+        return isSlotAvailable;
+      });
+
+      setAvailableTimeSlots(available);
+    } catch (error) {
+      console.error('Error checking availability:', error);
+      toast.error('Failed to check court availability');
+    } finally {
+      setIsCheckingAvailability(false);
+    }
   };
 
   const handleTimeSlotSelect = (timeSlotId: string) => {
