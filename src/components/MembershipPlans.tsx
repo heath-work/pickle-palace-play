@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { CheckCircle, Loader2, User, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import { Label } from '@/components/ui/label';
 // Stripe product IDs for each membership plan
 const STRIPE_PRODUCTS = {
   basic: 'prod_S9VikH2CV6NBRy',
+  premium: 'prod_S9ViDXMS27q5uG', // Using Elite product ID for Premium since they're the same tier
   elite: 'prod_S9ViDXMS27q5uG',
   founder: 'prod_S9VhRsmJf38RUc'
 };
