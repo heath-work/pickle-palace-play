@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,13 +31,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        // Use setTimeout to prevent potential deadlock with Supabase auth
         setTimeout(() => {
           fetchProfile(session.user.id);
         }, 0);
@@ -48,7 +45,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
 
-    // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -92,13 +88,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         options: {
           data: metadata,
           emailRedirectTo: window.location.origin,
-          // Disable email confirmation requirement
-          skipConfirmation: true 
         }
       });
+      
       if (!error) {
         toast.success('Account created successfully');
-        // Automatically sign in the user after signup
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) {
           toast.error('Signup successful, but automatic sign-in failed');
