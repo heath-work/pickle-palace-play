@@ -26,6 +26,12 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
 };
 
+// Helper function to validate email
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -62,6 +68,15 @@ serve(async (req) => {
     if (type === "membership" && !planId) {
       logStep("Missing required parameter", { parameter: "planId" });
       return new Response(JSON.stringify({ error: "Missing required parameter: planId" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    // Special validation for emails when provided
+    if (email && !isValidEmail(email)) {
+      logStep("Invalid email format", { email: email });
+      return new Response(JSON.stringify({ error: "Invalid email format" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
       });
@@ -210,15 +225,18 @@ serve(async (req) => {
     if (type === "membership") {
       logStep("Creating membership checkout for plan", { planId });
       
-      // Get the correct product ID based on the plan, handle 'premium' case
-      const productId = STRIPE_PRODUCT_IDS[planId.toLowerCase()];
-      if (!productId) {
-        logStep("Invalid plan ID", { planId });
+      // Get the correct product ID based on the plan, normalize the plan ID to lowercase
+      const planKey = planId.toLowerCase();
+      if (!STRIPE_PRODUCT_IDS[planKey]) {
+        logStep("Invalid plan ID", { planId, planKey });
         return new Response(JSON.stringify({ error: `Invalid plan ID: ${planId}` }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 400,
         });
       }
+      
+      const productId = STRIPE_PRODUCT_IDS[planKey];
+      logStep("Found product ID for plan", { planId, productId });
       
       // Get all prices for this product
       let prices;

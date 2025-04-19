@@ -111,6 +111,12 @@ const plans = [
   },
 ];
 
+// Email validation function
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
 const MembershipPlans = () => {
   const { user } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
@@ -173,9 +179,24 @@ const MembershipPlans = () => {
       setIsLoading(true);
       setError(null);
       
+      // Validate inputs
       if (!email || !password) {
         setError('Email and password are required');
         toast.error('Email and password are required');
+        return;
+      }
+      
+      // Validate email format
+      if (!isValidEmail(email)) {
+        setError('Please enter a valid email address');
+        toast.error('Please enter a valid email address');
+        return;
+      }
+      
+      // Validate password
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters long');
+        toast.error('Password must be at least 6 characters long');
         return;
       }
       
