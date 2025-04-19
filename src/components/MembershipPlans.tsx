@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { CheckCircle, Loader2, User, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,12 +16,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-// Stripe price IDs for each membership plan - updated with correct IDs
-const STRIPE_PRICES = {
-  basic: 'price_0OFJpk086zbpX7xNFOtSJa4v',
-  premium: 'price_0OFJqD086zbpX7xNWYX6S2X0',
-  elite: 'price_0OFJrA086zbpX7xNHGUyRK6i',
-  founder: 'price_0OFJr2086zbpX7xN4l6Ioe2K'
+// Stripe product IDs for each membership plan
+const STRIPE_PRODUCTS = {
+  basic: 'prod_S9VikH2CV6NBRy',
+  premium: 'prod_S9VikH2CV6NBRy', // Using basic for premium until you provide premium ID
+  elite: 'prod_S9ViDXMS27q5uG',
+  founder: 'prod_S9VhRsmJf38RUc'
 };
 
 const plans = [
@@ -39,7 +40,7 @@ const plans = [
     buttonVariant: 'outline',
     color: 'border-gray-200',
     href: '/membership#basic',
-    priceId: STRIPE_PRICES.basic
+    productId: STRIPE_PRODUCTS.basic
   },
   {
     name: 'Premium',
@@ -60,7 +61,7 @@ const plans = [
     color: 'border-pickleball-blue shadow-lg',
     mostPopular: true,
     href: '/membership#premium',
-    priceId: STRIPE_PRICES.premium
+    productId: STRIPE_PRODUCTS.premium
   },
   {
     name: 'Elite',
@@ -81,7 +82,7 @@ const plans = [
     buttonVariant: 'outline',
     color: 'border-gray-200',
     href: '/membership#elite',
-    priceId: STRIPE_PRICES.elite
+    productId: STRIPE_PRODUCTS.elite
   },
   {
     name: 'Founder',
@@ -106,7 +107,7 @@ const plans = [
     buttonVariant: 'outline',
     color: 'border-gray-200',
     href: '/membership#founder',
-    priceId: STRIPE_PRICES.founder
+    productId: STRIPE_PRODUCTS.founder
   },
 ];
 
@@ -135,15 +136,19 @@ const MembershipPlans = () => {
         body: {
           type: 'membership',
           planId: plan.name.toLowerCase(),
-          priceId: plan.priceId
+          productId: plan.productId
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Checkout error:', error);
+        throw error;
+      }
       
       if (data?.url) {
         window.location.href = data.url;
       } else {
+        console.error('No checkout URL returned', data);
         throw new Error('No checkout URL returned');
       }
     } catch (error) {
@@ -160,12 +165,14 @@ const MembershipPlans = () => {
     try {
       setIsLoading(true);
       
+      console.log('Starting signup and checkout for plan:', selectedPlan.name);
+      
       // Call edge function with signup details and plan info
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
           type: 'membership',
           planId: selectedPlan.name.toLowerCase(),
-          priceId: selectedPlan.priceId,
+          productId: selectedPlan.productId,
           email: email,
           password: password,
           fullName: fullName
@@ -181,6 +188,7 @@ const MembershipPlans = () => {
         setSignupDialogOpen(false);
         window.location.href = data.url;
       } else {
+        console.error('No checkout URL returned', data);
         throw new Error('No checkout URL returned');
       }
     } catch (error) {

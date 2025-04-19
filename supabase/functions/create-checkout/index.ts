@@ -12,6 +12,13 @@ const SUPABASE_URL = "https://lhlbcclbjzxkxgppmuvp.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxobGJjY2xianp4a3hncHBtdXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ3NjI4NzMsImV4cCI6MjA2MDMzODg3M30.cuizCUI29QFXhX_CP7J5YmCBFCgRaAAadsHFXRJzemI";
 const STRIPE_SECRET_KEY = "sk_test_51RFBFi086zbpX7xNyrvLpj5QDk2fnELRlzMpmYeDBBHw99csoTWv22VbJDoBDgdndukvMErAwmfADiJOYsF5IZm300SilWIQ6H";
 
+// Define product IDs
+const STRIPE_PRODUCT_IDS = {
+  basic: 'prod_S9VikH2CV6NBRy',
+  elite: 'prod_S9ViDXMS27q5uG',
+  founder: 'prod_S9VhRsmJf38RUc'
+};
+
 // Helper function for logging
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
@@ -115,30 +122,36 @@ serve(async (req) => {
     let session;
     
     if (type === "membership") {
-      logStep("Creating membership checkout", { priceId });
+      logStep("Creating membership checkout for plan", { planId });
       
-      // Define hardcoded Stripe price IDs
-      const STRIPE_PRICE_IDS = {
-        basic: 'price_0OFJpk086zbpX7xNFOtSJa4v',    // Basic plan
-        premium: 'price_0OFJqD086zbpX7xNWYX6S2X0',  // Premium plan
-        elite: 'price_0OFJrA086zbpX7xNHGUyRK6i',    // Elite plan
-        founder: 'price_0OFJr2086zbpX7xN4l6Ioe2K'   // Founder plan
-      };
-      
-      // Get the correct price ID based on the plan
-      const actualPriceId = STRIPE_PRICE_IDS[planId.toLowerCase()] || priceId;
-      logStep("Using price ID for checkout", { planId, actualPriceId });
-      
-      if (!actualPriceId) {
-        throw new Error(`No valid price ID found for plan: ${planId}`);
+      // Get prices for the specific product
+      const productId = STRIPE_PRODUCT_IDS[planId.toLowerCase()];
+      if (!productId) {
+        logStep("Invalid plan ID", { planId });
+        throw new Error(`Invalid plan ID: ${planId}`);
       }
+      
+      // Get all prices for this product
+      const prices = await stripe.prices.list({
+        product: productId,
+        active: true,
+      });
+      
+      if (prices.data.length === 0) {
+        logStep("No prices found for product", { productId });
+        throw new Error(`No prices found for product: ${productId}`);
+      }
+      
+      // Use the first price found (assuming it's the correct one)
+      const price = prices.data[0];
+      logStep("Found price for product", { productId, priceId: price.id });
       
       // Create subscription checkout
       session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ["card"],
         line_items: [{
-          price: actualPriceId,
+          price: price.id,
           quantity: 1,
         }],
         mode: "subscription",
