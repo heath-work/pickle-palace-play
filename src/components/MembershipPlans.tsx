@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { CheckCircle, Loader2, User, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,12 +15,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-// Stripe price IDs for each membership plan
+// Stripe price IDs for each membership plan - updated with correct IDs
 const STRIPE_PRICES = {
-  basic: 'price_1RFBFi086zbpX7xNnVIcqrty', // Replace with your actual price IDs
-  premium: 'price_1RFBFi086zbpX7xNcgRvGcDx',
-  elite: 'price_1RFBFi086zbpX7xNo43lGtDm',
-  founder: 'price_1RFBFi086zbpX7xNTjz8n2Dv'
+  basic: 'price_0OFJpk086zbpX7xNFOtSJa4v',
+  premium: 'price_0OFJqD086zbpX7xNWYX6S2X0',
+  elite: 'price_0OFJrA086zbpX7xNHGUyRK6i',
+  founder: 'price_0OFJr2086zbpX7xN4l6Ioe2K'
 };
 
 const plans = [
@@ -173,7 +172,10 @@ const MembershipPlans = () => {
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error during signup and checkout:', error);
+        throw error;
+      }
       
       if (data?.url) {
         setSignupDialogOpen(false);
