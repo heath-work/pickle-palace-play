@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import { Link } from 'react-router-dom';
 const plans = [
   {
     name: 'Basic',
-    price: '$49',
+    price: '$0',
     period: 'per month',
     description: 'Perfect for casual players who want occasional court time.',
     features: [
@@ -23,13 +22,15 @@ const plans = [
   },
   {
     name: 'Premium',
-    price: '$89',
+    price: '$18',
     period: 'per month',
     description: 'Our most popular plan for regular players.',
     features: [
       'All Basic features',
       'Access during all hours',
       'Priority court booking (3 days ahead)',
+      '10% discount on court rentals',
+      '15% discount on sessions',
       'Free equipment rental',
       '10% discount at pro shop',
     ],
@@ -41,21 +42,47 @@ const plans = [
   },
   {
     name: 'Elite',
-    price: '$149',
+    price: '$35',
     period: 'per month',
     description: 'For the serious players and competitors.',
     features: [
       'All Premium features',
       'Priority court booking (7 days ahead)',
+      '25% discount on court rentals',
+      '25% discount on sessions',
       'Free guest passes (2 per month)',
       'Access to exclusive tournaments',
       'Monthly private coaching session',
-      '20% discount at pro shop',
+      '15% discount at pro shop',
     ],
     buttonText: 'Get Elite',
     buttonVariant: 'outline',
     color: 'border-gray-200',
     href: '/membership#elite',
+  },
+  {
+    name: 'Founder',
+    price: '$225',
+    period: 'per month',
+    description: 'For the OGs ballers.',
+    features: [
+      'All Elite features',
+      '3 sessions per week',
+      'Priority session bookings',
+      '25% discount on court rentals',
+      '25% discount on sessions',
+      'Priority court booking (7 days ahead)',
+      'Free drink per session',
+      'PBC founders t-shirts (2 per year)',
+      'Free guest passes (4 per month)',
+      'Access to exclusive tournaments',
+      'Monthly private coaching session',
+      '25% discount at pro shop',
+    ],
+    buttonText: 'Become a Founder',
+    buttonVariant: 'outline',
+    color: 'border-gray-200',
+    href: '/membership#founder',
   },
 ];
 
