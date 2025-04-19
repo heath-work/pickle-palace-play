@@ -92,12 +92,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         options: {
           data: metadata,
           emailRedirectTo: window.location.origin,
-          // Don't require email verification for memberships
-          emailConfirm: false 
+          // Disable email confirmation requirement
+          skipConfirmation: true 
         }
       });
       if (!error) {
         toast.success('Account created successfully');
+        // Automatically sign in the user after signup
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          toast.error('Signup successful, but automatic sign-in failed');
+        }
       } else {
         toast.error(error.message);
       }
