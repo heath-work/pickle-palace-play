@@ -1,11 +1,20 @@
 
 import React, { useState } from 'react';
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Loader2, User, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // Stripe price IDs for each membership plan
 const STRIPE_PRICES = {
@@ -105,10 +114,18 @@ const plans = [
 const MembershipPlans = () => {
   const { user } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [signupDialogOpen, setSignupDialogOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<typeof plans[0] | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubscribe = async (plan: typeof plans[0]) => {
     if (!user) {
-      toast.error('Please sign in to subscribe');
+      // Open signup dialog instead of redirecting
+      setSelectedPlan(plan);
+      setSignupDialogOpen(true);
       return;
     }
 
@@ -135,6 +152,40 @@ const MembershipPlans = () => {
       toast.error('Failed to initiate checkout');
     } finally {
       setLoadingPlan(null);
+    }
+  };
+
+  const handleSignupAndSubscribe = async () => {
+    if (!selectedPlan) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Call edge function with signup details and plan info
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          type: 'membership',
+          planId: selectedPlan.name.toLowerCase(),
+          priceId: selectedPlan.priceId,
+          email: email,
+          password: password,
+          fullName: fullName
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.url) {
+        setSignupDialogOpen(false);
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error) {
+      console.error('Error during signup and checkout:', error);
+      toast.error('Failed to create account and checkout');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -217,32 +268,21 @@ const MembershipPlans = () => {
                 </p>
                 <p className="mt-4 text-sm text-gray-500">{plan.description}</p>
                 
-                {user ? (
-                  <Button
-                    variant={plan.buttonVariant as any}
-                    className={`mt-6 w-full ${plan.buttonVariant === 'default' ? 'bg-pickleball-blue hover:bg-blue-600' : 'text-pickleball-blue hover:bg-gray-50'}`}
-                    onClick={() => handleSubscribe(plan)}
-                    disabled={loadingPlan === plan.name}
-                  >
-                    {loadingPlan === plan.name ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
-                        Loading...
-                      </>
-                    ) : (
-                      plan.buttonText
-                    )}
-                  </Button>
-                ) : (
-                  <Link to="/auth/signin">
-                    <Button
-                      variant={plan.buttonVariant as any}
-                      className={`mt-6 w-full ${plan.buttonVariant === 'default' ? 'bg-pickleball-blue hover:bg-blue-600' : 'text-pickleball-blue hover:bg-gray-50'}`}
-                    >
-                      Sign In to Subscribe
-                    </Button>
-                  </Link>
-                )}
+                <Button
+                  variant={plan.buttonVariant as any}
+                  className={`mt-6 w-full ${plan.buttonVariant === 'default' ? 'bg-pickleball-blue hover:bg-blue-600' : 'text-pickleball-blue hover:bg-gray-50'}`}
+                  onClick={() => handleSubscribe(plan)}
+                  disabled={loadingPlan === plan.name}
+                >
+                  {loadingPlan === plan.name ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                      Loading...
+                    </>
+                  ) : (
+                    plan.buttonText
+                  )}
+                </Button>
               </div>
               <div className="px-6 pt-6 pb-8">
                 <h4 className="text-sm font-medium text-gray-900">What's included</h4>
@@ -259,6 +299,83 @@ const MembershipPlans = () => {
           ))}
         </div>
       </div>
+
+      {/* Signup Dialog */}
+      <Dialog open={signupDialogOpen} onOpenChange={setSignupDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create an account to continue</DialogTitle>
+            <DialogDescription>
+              Sign up to subscribe to the {selectedPlan?.name} plan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="fullName"
+                  placeholder="John Doe"
+                  className="pl-9"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="email"
+                  placeholder="you@example.com"
+                  className="pl-9"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  className="pl-9"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex justify-between items-center pt-4">
+              <Button variant="outline" onClick={() => setSignupDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSignupAndSubscribe} 
+                disabled={!email || !password || isLoading}
+                className="bg-pickleball-blue hover:bg-blue-600"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                    Processing...
+                  </>
+                ) : (
+                  'Sign Up & Continue'
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-center text-gray-500 mt-4">
+              Already have an account? <Link to="/auth/signin" className="text-pickleball-blue hover:underline">Sign in</Link> instead.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

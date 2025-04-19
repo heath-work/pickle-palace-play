@@ -45,18 +45,18 @@ const BookingForm = ({
   const [isProcessingPayment, setIsProcessingPayment] = React.useState(false);
 
   const handleBookWithPayment = async () => {
-    if (!user) {
-      toast.error('Please sign in to book a court');
-      return;
-    }
-
-    if (!bookingDetails.court_id || !bookingDetails.booking_date || !bookingDetails.time_slot_id) {
-      toast.error('Please select a date, court, and time slot');
-      return;
-    }
-
     try {
       setIsProcessingPayment(true);
+      
+      if (!user) {
+        toast.error('Please sign in to book a court');
+        return;
+      }
+
+      if (!bookingDetails.court_id || !bookingDetails.booking_date || !bookingDetails.time_slot_id) {
+        toast.error('Please select a date, court, and time slot');
+        return;
+      }
       
       // First, create the booking in database
       await onBookingSubmit();
@@ -69,7 +69,10 @@ const BookingForm = ({
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Checkout error:', error);
+        throw error;
+      }
       
       if (data?.url) {
         window.location.href = data.url;

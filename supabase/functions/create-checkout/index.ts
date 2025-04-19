@@ -10,6 +10,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = "https://lhlbcclbjzxkxgppmuvp.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxobGJjY2xianp4a3hncHBtdXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ3NjI4NzMsImV4cCI6MjA2MDMzODg3M30.cuizCUI29QFXhX_CP7J5YmCBFCgRaAAadsHFXRJzemI";
+const STRIPE_SECRET_KEY = "sk_test_51RFBFi086zbpX7xNyrvLpj5QDk2fnELRlzMpmYeDBBHw99csoTWv22VbJDoBDgdndukvMErAwmfADiJOYsF5IZm300SilWIQ6H";
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -18,28 +19,53 @@ serve(async (req) => {
   }
 
   try {
-    const { type, planId, priceId } = await req.json();
+    const { type, planId, priceId, email, password, fullName } = await req.json();
     
     // Create Supabase client for auth
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
-    // Get user from auth header
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      throw new Error("No authorization header provided");
+    let user = null;
+    
+    // If email and password provided, this is a new signup
+    if (email && password) {
+      const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName || ''
+          }
+        }
+      });
+      
+      if (signUpError) {
+        throw new Error(`Signup error: ${signUpError.message}`);
+      }
+      
+      user = signUpData.user;
+      
+      if (!user) {
+        throw new Error("Failed to create user account");
+      }
+    } else {
+      // Get user from auth header for existing users
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        throw new Error("No authorization header provided");
+      }
+      
+      const token = authHeader.replace("Bearer ", "");
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+      
+      if (userError || !userData.user) {
+        throw new Error("User not authenticated");
+      }
+      
+      user = userData.user;
     }
-    
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    
-    if (userError || !userData.user) {
-      throw new Error("User not authenticated");
-    }
-    
-    const user = userData.user;
     
     // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    const stripe = new Stripe(STRIPE_SECRET_KEY, {
       apiVersion: "2023-10-16",
     });
     
