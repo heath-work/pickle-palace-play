@@ -90,11 +90,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         email, 
         password,
         options: {
-          data: metadata
+          data: metadata,
+          emailRedirectTo: window.location.origin,
+          // Don't require email verification for memberships
+          emailConfirm: false 
         }
       });
       if (!error) {
-        toast.success('Check your email for the confirmation link');
+        toast.success('Account created successfully');
       } else {
         toast.error(error.message);
       }
