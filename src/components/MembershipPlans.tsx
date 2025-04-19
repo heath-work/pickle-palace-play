@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { CheckCircle, Loader2, User, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,7 +18,6 @@ import { Label } from '@/components/ui/label';
 // Stripe product IDs for each membership plan
 const STRIPE_PRODUCTS = {
   basic: 'prod_S9VikH2CV6NBRy',
-  premium: 'prod_S9VikH2CV6NBRy', // Using basic for premium until you provide premium ID
   elite: 'prod_S9ViDXMS27q5uG',
   founder: 'prod_S9VhRsmJf38RUc'
 };
@@ -120,10 +118,10 @@ const MembershipPlans = () => {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubscribe = async (plan: typeof plans[0]) => {
     if (!user) {
-      // Open signup dialog instead of redirecting
       setSelectedPlan(plan);
       setSignupDialogOpen(true);
       return;
@@ -131,6 +129,9 @@ const MembershipPlans = () => {
 
     try {
       setLoadingPlan(plan.name);
+      setError(null);
+      
+      console.log('Starting checkout for plan:', plan.name);
       
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
@@ -142,6 +143,8 @@ const MembershipPlans = () => {
       
       if (error) {
         console.error('Checkout error:', error);
+        setError(`Checkout error: ${error.message}`);
+        toast.error('Failed to initiate checkout');
         throw error;
       }
       
@@ -149,6 +152,8 @@ const MembershipPlans = () => {
         window.location.href = data.url;
       } else {
         console.error('No checkout URL returned', data);
+        setError('No checkout URL returned');
+        toast.error('Failed to initiate checkout');
         throw new Error('No checkout URL returned');
       }
     } catch (error) {
@@ -164,11 +169,17 @@ const MembershipPlans = () => {
     
     try {
       setIsLoading(true);
+      setError(null);
+      
+      if (!email || !password) {
+        setError('Email and password are required');
+        toast.error('Email and password are required');
+        return;
+      }
       
       console.log('Starting signup and checkout for plan:', selectedPlan.name);
       
-      // Call edge function with signup details and plan info
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
+      const { data, error: functionError } = await supabase.functions.invoke('create-checkout', {
         body: {
           type: 'membership',
           planId: selectedPlan.name.toLowerCase(),
@@ -179,20 +190,38 @@ const MembershipPlans = () => {
         }
       });
       
-      if (error) {
-        console.error('Error during signup and checkout:', error);
-        throw error;
+      if (functionError) {
+        console.error('Error during signup and checkout:', functionError);
+        setError(`Error: ${functionError.message}`);
+        toast.error('Failed to create account and checkout');
+        return;
       }
       
-      if (data?.url) {
+      if (!data) {
+        console.error('No data returned from edge function');
+        setError('No data returned from edge function');
+        toast.error('Failed to create account and checkout');
+        return;
+      }
+      
+      if (data.error) {
+        console.error('Error from edge function:', data.error);
+        setError(`Error: ${data.error}`);
+        toast.error('Failed to create account and checkout');
+        return;
+      }
+      
+      if (data.url) {
         setSignupDialogOpen(false);
         window.location.href = data.url;
       } else {
         console.error('No checkout URL returned', data);
-        throw new Error('No checkout URL returned');
+        setError('No checkout URL returned');
+        toast.error('Failed to create account and checkout');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error during signup and checkout:', error);
+      setError(`Error: ${error.message || 'Unknown error'}`);
       toast.error('Failed to create account and checkout');
     } finally {
       setIsLoading(false);
@@ -320,6 +349,11 @@ const MembershipPlans = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
               <div className="relative">
@@ -334,7 +368,7 @@ const MembershipPlans = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
@@ -344,11 +378,12 @@ const MembershipPlans = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
@@ -358,7 +393,9 @@ const MembershipPlans = () => {
                   className="pl-9"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required
                 />
+                <p className="text-xs text-gray-500">Password must be at least 6 characters long</p>
               </div>
             </div>
             <div className="flex justify-between items-center pt-4">

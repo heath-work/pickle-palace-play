@@ -33,8 +33,26 @@ serve(async (req) => {
 
   try {
     logStep("Function started");
-    const { type, planId, priceId, email, password, fullName } = await req.json();
-    logStep("Request parsed", { type, planId, priceId: priceId ? "***" : null, email: email ? "***" : null });
+    
+    // Parse the request body
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      logStep("Request body parsed", requestBody);
+    } catch (error) {
+      logStep("Failed to parse request body", { error: error.message });
+      throw new Error("Invalid request body");
+    }
+    
+    const { type, planId, productId, email, password, fullName } = requestBody;
+    logStep("Request params extracted", { 
+      type, 
+      planId, 
+      productId, 
+      email: email ? "***" : null,
+      passwordProvided: !!password,
+      fullNameProvided: !!fullName 
+    });
     
     // Create Supabase client for auth
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -71,6 +89,7 @@ serve(async (req) => {
       logStep("Getting existing user from auth header");
       const authHeader = req.headers.get("Authorization");
       if (!authHeader) {
+        logStep("No authorization header provided");
         throw new Error("No authorization header provided");
       }
       
@@ -124,7 +143,7 @@ serve(async (req) => {
     if (type === "membership") {
       logStep("Creating membership checkout for plan", { planId });
       
-      // Get prices for the specific product
+      // Get the correct product ID based on the plan
       const productId = STRIPE_PRODUCT_IDS[planId.toLowerCase()];
       if (!productId) {
         logStep("Invalid plan ID", { planId });
@@ -144,7 +163,7 @@ serve(async (req) => {
       
       // Use the first price found (assuming it's the correct one)
       const price = prices.data[0];
-      logStep("Found price for product", { productId, priceId: price.id });
+      logStep("Found price for product", { productId, priceId: price.id, price: price.unit_amount });
       
       // Create subscription checkout
       session = await stripe.checkout.sessions.create({
@@ -158,6 +177,7 @@ serve(async (req) => {
         success_url: `${origin}/membership-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/membership`,
       });
+      
       logStep("Created subscription checkout session", { sessionId: session.id });
     } else if (type === "booking") {
       // Create one-time payment checkout
@@ -181,6 +201,7 @@ serve(async (req) => {
       });
       logStep("Created booking checkout session", { sessionId: session.id });
     } else {
+      logStep("Invalid checkout type", { type });
       throw new Error("Invalid checkout type");
     }
     
