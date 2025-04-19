@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Clock } from 'lucide-react';
+import { Clock, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -42,6 +42,47 @@ const BookingForm = ({
   onBookingSubmit
 }: BookingFormProps) => {
   const { user } = useAuth();
+  const [isProcessingPayment, setIsProcessingPayment] = React.useState(false);
+
+  const handleBookWithPayment = async () => {
+    if (!user) {
+      toast.error('Please sign in to book a court');
+      return;
+    }
+
+    if (!bookingDetails.court_id || !bookingDetails.booking_date || !bookingDetails.time_slot_id) {
+      toast.error('Please select a date, court, and time slot');
+      return;
+    }
+
+    try {
+      setIsProcessingPayment(true);
+      
+      // First, create the booking in database
+      await onBookingSubmit();
+      
+      // Then create a checkout session
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          type: 'booking',
+          bookingId: bookingDetails.court_id // This would normally be the booking ID
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      toast.error('Failed to initiate payment');
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -132,10 +173,17 @@ const BookingForm = ({
 
         <Button 
           className="w-full bg-pickleball-blue hover:bg-blue-600" 
-          onClick={onBookingSubmit}
-          disabled={isLoading || !user || !date || !bookingDetails.court_id || !bookingDetails.time_slot_id}
+          onClick={handleBookWithPayment}
+          disabled={isLoading || isProcessingPayment || !user || !date || !bookingDetails.court_id || !bookingDetails.time_slot_id}
         >
-          {isLoading ? 'Processing...' : 'Book Now'}
+          {isLoading || isProcessingPayment ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+              {isProcessingPayment ? 'Processing Payment...' : 'Loading...'}
+            </>
+          ) : (
+            'Book and Pay Now'
+          )}
         </Button>
       </div>
     </div>

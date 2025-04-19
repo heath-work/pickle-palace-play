@@ -15,6 +15,8 @@ import SignInPage from "./pages/auth/SignIn";
 import SignUpPage from "./pages/auth/SignUp";
 import ProfilePage from "./pages/auth/Profile";
 import { AuthProvider } from "./contexts/AuthContext";
+import MembershipSuccess from "./pages/MembershipSuccess";
+import BookingSuccess from "./pages/BookingSuccess";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -32,7 +34,9 @@ const App = () => {
                 <Route path="/" element={<Index />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/membership" element={<Membership />} />
+                <Route path="/membership-success" element={<MembershipSuccess />} />
                 <Route path="/booking" element={<Booking />} />
+                <Route path="/booking-success" element={<BookingSuccess />} />
                 <Route path="/booking-history" element={<BookingHistory />} />
                 <Route path="/auth/signin" element={<SignInPage />} />
                 <Route path="/auth/signup" element={<SignUpPage />} />
