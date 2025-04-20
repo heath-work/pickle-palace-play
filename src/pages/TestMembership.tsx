@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 const TestMembership = () => {
   const { user, profile, updateProfile } = useAuth();
-  const [selectedMembership, setSelectedMembership] = useState<string>(profile?.membership_type || '');
+  const [selectedMembership, setSelectedMembership] = useState<string>(profile?.membership_type || 'None');
   const [isLoading, setIsLoading] = useState(false);
   const [responseLog, setResponseLog] = useState<string>('');
 
@@ -121,7 +121,7 @@ const TestMembership = () => {
                     <SelectValue placeholder="Select a membership type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="None">None</SelectItem>
                     <SelectItem value="Basic">Basic</SelectItem>
                     <SelectItem value="Premium">Premium</SelectItem>
                     <SelectItem value="Elite">Elite</SelectItem>

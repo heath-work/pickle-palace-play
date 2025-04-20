@@ -131,16 +131,27 @@ const BookingSystem = () => {
 
   // Get membership discount information based on user's membership type
   const getMembershipDiscount = () => {
-    if (!profile?.membership_type) return null;
+    if (!profile || !profile.membership_type) return null;
     
-    const discounts = {
+    const discounts: {[key: string]: string} = {
       "Premium": "10%",
       "Elite": "15%",
       "Founder": "25%"
     };
     
-    return discounts[profile.membership_type as keyof typeof discounts];
+    return discounts[profile.membership_type] || null;
   };
+
+  // Debug log for profile information
+  useEffect(() => {
+    if (profile) {
+      console.log('Current profile in BookingSystem:', {
+        id: profile.id,
+        username: profile.username,
+        membership_type: profile.membership_type
+      });
+    }
+  }, [profile]);
 
   const membershipDiscount = getMembershipDiscount();
 
@@ -187,10 +198,10 @@ const BookingSystem = () => {
           <div className="lg:col-span-1">
             <div className="bg-gray-50 p-6 rounded-lg sticky top-6">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Booking Information</h3>
-              {user && profile && (
+              {user && (
                 <div className="mb-4 flex items-center">
                   <span className="font-medium mr-2">Membership:</span>
-                  {profile.membership_type ? (
+                  {profile && profile.membership_type ? (
                     <div className="flex flex-col">
                       <Badge className={
                         profile.membership_type === "Founder" ? "bg-purple-600" :
