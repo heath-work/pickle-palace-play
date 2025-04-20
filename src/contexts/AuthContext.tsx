@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,12 +31,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const checkAndUpdateMembership = async (userId: string) => {
+    try {
+      console.log('Checking subscription status for user:', userId);
+      const { data, error } = await supabase.functions.invoke('check-subscription', {
+        body: { userId }
+      });
+
+      if (error) {
+        console.error('Error checking subscription:', error);
+        return;
+      }
+
+      if (data.subscribed) {
+        console.log('User has active subscription:', data.subscription_tier);
+        // Update profile with subscription tier
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            membership_type: data.subscription_tier,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId);
+
+        if (updateError) {
+          console.error('Error updating profile with membership:', updateError);
+        } else {
+          console.log('Successfully updated profile with membership type:', data.subscription_tier);
+          // Refresh the profile to get the updated data
+          await fetchProfile(userId);
+        }
+      } else {
+        console.log('No active subscription found');
+      }
+    } catch (error) {
+      console.error('Error in checkAndUpdateMembership:', error);
+    }
+  };
+
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
+        console.log('Auth state changed, checking membership for user:', session.user.id);
+        await checkAndUpdateMembership(session.user.id);
         setTimeout(() => {
           fetchProfile(session.user.id);
         }, 0);
@@ -47,10 +86,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Initial session check
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        console.log('Initial session check, checking membership for user:', session.user.id);
+        await checkAndUpdateMembership(session.user.id);
         fetchProfile(session.user.id);
       } else {
         setIsLoading(false);
