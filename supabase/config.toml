@@ -1,6 +1,11 @@
 
 project_id = "lhlbcclbjzxkxgppmuvp"
 
-[functions]
 [functions.create-checkout]
+verify_jwt = true
+
 [functions.create-subscription-portal]
+verify_jwt = true
+
+[functions.check-subscription]
+verify_jwt = true

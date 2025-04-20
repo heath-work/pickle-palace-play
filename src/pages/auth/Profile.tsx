@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -29,6 +30,11 @@ const ProfilePage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingPortal, setIsLoadingPortal] = useState(false);
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
+  const [membershipLoading, setMembershipLoading] = useState(true);
+  const [membershipDetails, setMembershipDetails] = useState({ 
+    type: 'No active membership',
+    isActive: false
+  });
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(formSchema),
@@ -43,6 +49,55 @@ const ProfilePage = () => {
       avatar_url: profile?.avatar_url || '',
     },
   });
+
+  useEffect(() => {
+    const fetchMembershipStatus = async () => {
+      if (!user) return;
+      
+      try {
+        setMembershipLoading(true);
+        
+        // First try to get membership from profile
+        if (profile?.membership_type) {
+          setMembershipDetails({
+            type: profile.membership_type,
+            isActive: true
+          });
+          setMembershipLoading(false);
+          return;
+        }
+        
+        // If no membership in profile, check Stripe directly
+        const { data: customerData, error: customerError } = await supabase.functions.invoke('check-subscription', {});
+        
+        if (customerError) {
+          console.error('Error checking subscription:', customerError);
+          toast.error('Failed to check membership status');
+          setMembershipLoading(false);
+          return;
+        }
+        
+        if (customerData?.subscription_tier) {
+          setMembershipDetails({
+            type: customerData.subscription_tier,
+            isActive: true
+          });
+        } else {
+          setMembershipDetails({
+            type: 'No active membership',
+            isActive: false
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching membership status:', error);
+        toast.error('Failed to load membership status');
+      } finally {
+        setMembershipLoading(false);
+      }
+    };
+
+    fetchMembershipStatus();
+  }, [user, profile]);
 
   useEffect(() => {
     const fetchUpcomingBookings = async () => {
@@ -113,11 +168,15 @@ const ProfilePage = () => {
       setIsLoadingPortal(true);
       const { data, error } = await supabase.functions.invoke('create-subscription-portal', {});
       
-      if (error) throw error;
+      if (error) {
+        console.error('Portal error:', error);
+        throw error;
+      }
       
       if (data?.url) {
         window.location.href = data.url;
       } else {
+        console.error('No portal URL returned:', data);
         throw new Error('No portal URL returned');
       }
     } catch (error) {
@@ -184,13 +243,20 @@ const ProfilePage = () => {
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="text-sm font-medium">Current Plan</p>
-                      <p className="text-2xl font-bold text-pickleball-blue">
-                        {profile?.membership_type || 'No active membership'}
-                      </p>
+                      {membershipLoading ? (
+                        <div className="flex items-center mt-1">
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin text-pickleball-blue" />
+                          <p className="text-gray-500">Loading membership details...</p>
+                        </div>
+                      ) : (
+                        <p className={`text-2xl font-bold ${membershipDetails.isActive ? 'text-pickleball-blue' : 'text-gray-500'}`}>
+                          {membershipDetails.type}
+                        </p>
+                      )}
                     </div>
                     <Button
                       onClick={handleManageSubscription}
-                      disabled={isLoadingPortal}
+                      disabled={isLoadingPortal || !membershipDetails.isActive}
                       className="flex items-center"
                     >
                       {isLoadingPortal ? (
@@ -206,6 +272,17 @@ const ProfilePage = () => {
                       )}
                     </Button>
                   </div>
+                  {!membershipDetails.isActive && !membershipLoading && (
+                    <div className="mt-4">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => window.location.href = '/membership'}
+                        className="w-full"
+                      >
+                        View Membership Options
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

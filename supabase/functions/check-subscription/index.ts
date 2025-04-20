@@ -15,7 +15,13 @@ const STRIPE_SECRET_KEY = "sk_test_51RFBFi086zbpX7xNyrvLpj5QDk2fnELRlzMpmYeDBBHw
 // Helper function for logging
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[SUBSCRIPTION-PORTAL] ${step}${detailsStr}`);
+  console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
+};
+
+const PLAN_MAPPING = {
+  "prod_S9VikH2CV6NBRy": "Basic",
+  "prod_S9ViDXMS27q5uG": "Premium",
+  "prod_S9VhRsmJf38RUc": "Founder"
 };
 
 serve(async (req) => {
@@ -63,29 +69,88 @@ serve(async (req) => {
     
     if (customers.data.length === 0) {
       logStep("No Stripe customer found");
-      throw new Error("No Stripe customer found for this user");
+      return new Response(JSON.stringify({ 
+        subscribed: false,
+        subscription_tier: null,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
     }
     
     const customerId = customers.data[0].id;
     logStep("Found customer", { customerId });
     
-    // Get origin for return URL
-    const origin = req.headers.get("origin") || "http://localhost:5173";
-    
-    // Create customer portal session
-    logStep("Creating customer portal session");
-    const session = await stripe.billingPortal.sessions.create({
+    // Get subscriptions
+    const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
-      return_url: `${origin}/auth/profile`,
+      status: 'active',
     });
-    logStep("Created portal session", { sessionId: session.id });
     
-    return new Response(JSON.stringify({ url: session.url }), {
+    if (subscriptions.data.length === 0) {
+      logStep("No active subscriptions found");
+      return new Response(JSON.stringify({ 
+        subscribed: false,
+        subscription_tier: null,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+    
+    // Get subscription details
+    const subscription = subscriptions.data[0];
+    const items = subscription.items.data;
+    
+    if (items.length === 0) {
+      logStep("No items in subscription");
+      return new Response(JSON.stringify({ 
+        subscribed: false,
+        subscription_tier: null,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+    
+    const product = items[0].price.product;
+    logStep("Found product", { productId: product });
+    
+    // Map product to plan type
+    let subscriptionTier = "Premium"; // Default
+    
+    if (typeof product === 'string') {
+      subscriptionTier = PLAN_MAPPING[product] || "Premium";
+    }
+    
+    logStep("Determined subscription tier", { subscriptionTier });
+    
+    // Update profile in Supabase with membership type
+    const { error: updateError } = await supabaseClient
+      .from('profiles')
+      .update({
+        membership_type: subscriptionTier,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', user.id);
+    
+    if (updateError) {
+      logStep("Error updating profile", { error: updateError.message });
+      console.error("Error updating profile:", updateError);
+    } else {
+      logStep("Updated profile with membership type");
+    }
+    
+    return new Response(JSON.stringify({
+      subscribed: true,
+      subscription_tier: subscriptionTier,
+      subscription_end: new Date(subscription.current_period_end * 1000).toISOString(),
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
-    console.error("Customer portal error:", error);
+    console.error("Check subscription error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 400,
