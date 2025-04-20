@@ -1,11 +1,14 @@
 
 project_id = "lhlbcclbjzxkxgppmuvp"
 
+[functions.check-subscription]
+verify_jwt = true
+
 [functions.create-checkout]
 verify_jwt = true
 
 [functions.create-subscription-portal]
 verify_jwt = true
 
-[functions.check-subscription]
+[functions.update-profile-membership]
 verify_jwt = true

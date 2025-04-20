@@ -21,6 +21,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<{ error: any | null }>;
   signOut: () => Promise<void>;
   updateProfile: (profile: Partial<Profile>) => Promise<{ error: any | null }>;
+  refreshProfile: (userId: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -74,12 +75,44 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.error('Error fetching profile:', error);
       } else {
         console.log('Profile data received:', data);
-        setProfile(data as Profile);
+        if (data) {
+          setProfile(data as Profile);
+        } else {
+          console.error('No profile found for user ID:', userId);
+          // Create a default profile if one doesn't exist
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert([
+              { 
+                id: userId,
+                username: user?.email?.split('@')[0] || null,
+                full_name: user?.user_metadata?.full_name || null,
+                membership_type: null
+              }
+            ]);
+          
+          if (insertError) {
+            console.error('Error creating default profile:', insertError);
+          } else {
+            console.log('Created default profile for user');
+            // Fetch the newly created profile
+            fetchProfile(userId);
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const refreshProfile = async (userId: string) => {
+    try {
+      console.log('Refreshing profile for userId:', userId);
+      await fetchProfile(userId);
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
     }
   };
 
@@ -147,14 +180,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         updated_at: new Date().toISOString(),
       };
 
+      console.log('Updating profile with data:', updates);
+      
       const { error } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', user.id);
 
-      if (!error && profile) {
-        setProfile({ ...profile, ...profileData });
-        toast.success('Profile updated successfully');
+      if (error) {
+        console.error('Error updating profile:', error);
+        toast.error('An error occurred while updating your profile');
+      } else {
+        if (profile) {
+          setProfile({ ...profile, ...profileData });
+          toast.success('Profile updated successfully');
+          console.log('Profile updated successfully:', { ...profile, ...profileData });
+        }
       }
       return { error };
     } catch (error) {
@@ -173,6 +214,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signIn,
     signOut,
     updateProfile,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

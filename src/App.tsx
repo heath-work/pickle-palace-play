@@ -17,6 +17,7 @@ import ProfilePage from "./pages/auth/Profile";
 import { AuthProvider } from "./contexts/AuthContext";
 import MembershipSuccess from "./pages/MembershipSuccess";
 import BookingSuccess from "./pages/BookingSuccess";
+import TestMembership from "./pages/TestMembership";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => {
                 <Route path="/auth/signin" element={<SignInPage />} />
                 <Route path="/auth/signup" element={<SignUpPage />} />
                 <Route path="/auth/profile" element={<ProfilePage />} />
+                <Route path="/test-membership" element={<TestMembership />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
