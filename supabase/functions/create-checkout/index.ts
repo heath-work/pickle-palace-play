@@ -11,7 +11,6 @@ const SUPABASE_URL = "https://lhlbcclbjzxkxgppmuvp.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxobGJjY2xianp4a3hncHBtdXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ3NjI4NzMsImV4cCI6MjA2MDMzODg3M30.cuizCUI29QFXhX_CP7J5YmCBFCgRaAAadsHFXRJzemI";
 const STRIPE_SECRET_KEY = "sk_test_51RFBFi086zbpX7xNyrvLpj5QDk2fnELRlzMpmYeDBBHw99csoTWv22VbJDoBDgdndukvMErAwmfADiJOYsF5IZm300SilWIQ6H";
 
-// Define product IDs
 const STRIPE_PRODUCT_IDS = {
   basic: 'prod_S9VikH2CV6NBRy',
   premium: 'prod_S9ViDXMS27q5uG',
@@ -20,20 +19,25 @@ const STRIPE_PRODUCT_IDS = {
   booking: 'prod_S9iCz9kVSN6ZqP'
 };
 
-// Helper function for logging
+const MEMBERSHIP_DISCOUNTS = {
+  "Premium": 0.10, // 10% off
+  "Elite": 0.15,   // 15% off
+  "Founder": 0.25  // 25% off
+};
+
+const BASE_COURT_PRICE = 6000; // $60.00 in cents
+
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
 };
 
-// Helper function to validate email
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -41,7 +45,6 @@ serve(async (req) => {
   try {
     logStep("Function started");
     
-    // Parse the request body
     let requestBody;
     try {
       requestBody = await req.json();
@@ -54,7 +57,6 @@ serve(async (req) => {
       });
     }
     
-    // Validate request parameters
     const { type, planId, email, password, fullName } = requestBody;
     
     if (!type) {
@@ -73,7 +75,6 @@ serve(async (req) => {
       });
     }
 
-    // Special validation for emails when provided
     if (email && !isValidEmail(email)) {
       logStep("Invalid email format", { email: email });
       return new Response(JSON.stringify({ error: "Invalid email format" }), {
@@ -90,29 +91,23 @@ serve(async (req) => {
       fullNameProvided: !!fullName 
     });
     
-    // Create Supabase client for auth
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
     let user = null;
     
-    // If email and password provided, this is a new signup
     if (email && password) {
       logStep("Attempting to sign up new user", { email: email ? "***" : null });
       
       try {
-        // First check if user already exists
         const { data: existingUser, error: checkError } = await supabaseClient.auth.signInWithPassword({
           email,
           password
         });
         
         if (existingUser && existingUser.user) {
-          // User already exists and password matches, continue with this user
           logStep("User already exists and authenticated", { userId: existingUser.user.id });
           user = existingUser.user;
         } else if (checkError && checkError.message.includes("Invalid login credentials")) {
-          // User may exist but password is wrong, or user doesn't exist
-          // Try to sign up the user
           const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
             email,
             password,
@@ -131,7 +126,7 @@ serve(async (req) => {
                 code: "USER_EXISTS" 
               }), {
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
-                status: 409, // Conflict
+                status: 409,
               });
             } else {
               logStep("Signup error", { error: signUpError.message });
@@ -153,7 +148,6 @@ serve(async (req) => {
           }
           logStep("User signed up successfully", { userId: user.id });
         } else {
-          // Some other error occurred during sign-in check
           logStep("Error checking existing user", { error: checkError?.message });
           return new Response(JSON.stringify({ error: `Error checking existing user: ${checkError?.message}` }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -168,7 +162,6 @@ serve(async (req) => {
         });
       }
     } else {
-      // Get user from auth header for existing users
       logStep("Getting existing user from auth header");
       const authHeader = req.headers.get("Authorization");
       if (!authHeader) {
@@ -202,14 +195,10 @@ serve(async (req) => {
       }
     }
     
-    // Initialize Stripe
-    logStep("Initializing Stripe");
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
       apiVersion: "2023-10-16",
     });
     
-    // Check if customer exists already
-    logStep("Checking if customer exists", { email: user.email ? "***" : null });
     let customers;
     try {
       customers = await stripe.customers.list({
@@ -229,8 +218,6 @@ serve(async (req) => {
       customerId = customers.data[0].id;
       logStep("Found existing customer", { customerId });
     } else {
-      // Create a new customer
-      logStep("Creating new customer");
       try {
         const customer = await stripe.customers.create({
           email: user.email,
@@ -249,15 +236,9 @@ serve(async (req) => {
       }
     }
     
-    // Get origin for success/cancel URLs
     const origin = req.headers.get("origin") || "http://localhost:5173";
     
-    let session;
-    
     if (type === "membership") {
-      logStep("Creating membership checkout for plan", { planId });
-      
-      // Get the correct product ID based on the plan, normalize the plan ID to lowercase
       const planKey = planId.toLowerCase();
       if (!STRIPE_PRODUCT_IDS[planKey]) {
         logStep("Invalid plan ID", { planId, planKey });
@@ -270,7 +251,6 @@ serve(async (req) => {
       const productId = STRIPE_PRODUCT_IDS[planKey];
       logStep("Found product ID for plan", { planId, productId });
       
-      // Get all prices for this product
       let prices;
       try {
         prices = await stripe.prices.list({
@@ -293,11 +273,9 @@ serve(async (req) => {
         });
       }
       
-      // Use the first price found (assuming it's the correct one)
       const price = prices.data[0];
       logStep("Found price for product", { productId, priceId: price.id, price: price.unit_amount });
       
-      // Create subscription checkout
       try {
         session = await stripe.checkout.sessions.create({
           customer: customerId,
@@ -320,39 +298,53 @@ serve(async (req) => {
         });
       }
     } else if (type === "booking") {
-      // Create one-time payment checkout for booking
       logStep("Creating booking checkout");
       try {
-        const prices = await stripe.prices.list({
-          product: STRIPE_PRODUCT_IDS.booking,
-          active: true,
-          limit: 1
-        });
+        const { data: profileData, error: profileError } = await supabaseClient
+          .from('profiles')
+          .select('membership_type')
+          .eq('id', user.id)
+          .single();
 
-        if (prices.data.length === 0) {
-          throw new Error('No active price found for court booking');
+        if (profileError) {
+          logStep("Error fetching user profile", { error: profileError.message });
+          throw new Error('Error fetching user profile');
         }
 
-        const price = prices.data[0];
-        
+        const membershipType = profileData?.membership_type;
+        const discount = MEMBERSHIP_DISCOUNTS[membershipType as keyof typeof MEMBERSHIP_DISCOUNTS] || 0;
+        const discountedPrice = Math.round(BASE_COURT_PRICE * (1 - discount));
+
+        logStep("Calculating price", { 
+          membershipType, 
+          basePrice: BASE_COURT_PRICE,
+          discount,
+          finalPrice: discountedPrice 
+        });
+
         session = await stripe.checkout.sessions.create({
           customer: customerId,
           payment_method_types: ["card"],
           line_items: [{
-            price: price.id,
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: "Court Booking",
+                description: discount > 0 ? `Including ${discount * 100}% ${membershipType} member discount` : undefined
+              },
+              unit_amount: discountedPrice,
+            },
             quantity: 1,
           }],
           mode: "payment",
           success_url: `${origin}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${origin}/booking`,
         });
+        
         logStep("Created booking checkout session", { sessionId: session.id });
       } catch (error) {
         logStep("Error creating booking checkout session", { error: error.message });
-        return new Response(JSON.stringify({ error: `Stripe error: ${error.message}` }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        });
+        throw error;
       }
     } else {
       logStep("Invalid checkout type", { type });
