@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -70,15 +71,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    let mounted = true;
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
         console.log('Auth state changed, checking membership for user:', session.user.id);
-        await checkAndUpdateMembership(session.user.id);
+        // Using setTimeout to prevent deadlocks with Supabase auth
         setTimeout(() => {
-          fetchProfile(session.user.id);
+          if (mounted) {
+            checkAndUpdateMembership(session.user.id);
+            fetchProfile(session.user.id);
+          }
         }, 0);
       } else {
         setProfile(null);
@@ -87,19 +95,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     // Initial session check
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      
       setSession(session);
       setUser(session?.user ?? null);
+      
       if (session?.user) {
         console.log('Initial session check, checking membership for user:', session.user.id);
-        await checkAndUpdateMembership(session.user.id);
-        fetchProfile(session.user.id);
+        // Using setTimeout to prevent deadlocks with Supabase auth
+        setTimeout(() => {
+          if (mounted) {
+            checkAndUpdateMembership(session.user.id);
+            fetchProfile(session.user.id);
+          }
+        }, 0);
       } else {
         setIsLoading(false);
       }
     });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
