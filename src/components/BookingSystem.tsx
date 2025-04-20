@@ -11,7 +11,7 @@ import BookingCalendar from './BookingCalendar';
 import { Badge } from '@/components/ui/badge';
 
 const BookingSystem = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const {
     date,
     courts,
@@ -25,6 +25,27 @@ const BookingSystem = () => {
     setBookingDetails,
     checkAvailability
   } = useBooking();
+
+  // Ensure we have the latest profile data when component mounts
+  useEffect(() => {
+    if (user) {
+      console.log('BookingSystem: Refreshing profile data on mount');
+      refreshProfile(user.id);
+    }
+  }, [user]);
+
+  // Debug log for profile information
+  useEffect(() => {
+    if (profile) {
+      console.log('Current profile in BookingSystem:', {
+        id: profile.id,
+        username: profile.username,
+        membership_type: profile.membership_type || 'No membership type found'
+      });
+    } else {
+      console.log('BookingSystem: No profile data available');
+    }
+  }, [profile]);
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
     setDate(selectedDate);
@@ -131,7 +152,17 @@ const BookingSystem = () => {
 
   // Get membership discount information based on user's membership type
   const getMembershipDiscount = () => {
-    if (!profile || !profile.membership_type) return null;
+    if (!profile) {
+      console.log('No profile available for discount calculation');
+      return null;
+    }
+    
+    if (!profile.membership_type) {
+      console.log('No membership_type in profile for discount calculation');
+      return null;
+    }
+    
+    console.log(`Calculating discount for membership type: ${profile.membership_type}`);
     
     const discounts: {[key: string]: string} = {
       "Premium": "10%",
@@ -142,18 +173,8 @@ const BookingSystem = () => {
     return discounts[profile.membership_type] || null;
   };
 
-  // Debug log for profile information
-  useEffect(() => {
-    if (profile) {
-      console.log('Current profile in BookingSystem:', {
-        id: profile.id,
-        username: profile.username,
-        membership_type: profile.membership_type
-      });
-    }
-  }, [profile]);
-
   const membershipDiscount = getMembershipDiscount();
+  console.log('Calculated membership discount:', membershipDiscount);
 
   return (
     <div className="py-12 bg-white">
@@ -201,15 +222,16 @@ const BookingSystem = () => {
               {user && (
                 <div className="mb-4 flex items-center">
                   <span className="font-medium mr-2">Membership:</span>
-                  {profile && profile.membership_type ? (
+                  {profile ? (
                     <div className="flex flex-col">
                       <Badge className={
                         profile.membership_type === "Founder" ? "bg-purple-600" :
                         profile.membership_type === "Elite" ? "bg-emerald-600" :
                         profile.membership_type === "Premium" ? "bg-blue-600" :
-                        "bg-gray-600"
+                        profile.membership_type === "Basic" ? "bg-gray-600" :
+                        "bg-gray-400"
                       }>
-                        {profile.membership_type}
+                        {profile.membership_type || 'None'}
                       </Badge>
                       {membershipDiscount && (
                         <span className="text-sm text-green-600 font-medium mt-1">
@@ -218,7 +240,7 @@ const BookingSystem = () => {
                       )}
                     </div>
                   ) : (
-                    <Badge variant="outline">None</Badge>
+                    <Badge variant="outline">Loading...</Badge>
                   )}
                 </div>
               )}

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Clock, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -41,8 +41,27 @@ const BookingForm = ({
   onDurationSelect,
   onBookingSubmit
 }: BookingFormProps) => {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [isProcessingPayment, setIsProcessingPayment] = React.useState(false);
+
+  // Ensure we have the latest profile data when component mounts
+  useEffect(() => {
+    if (user) {
+      console.log('BookingForm: Refreshing profile data on mount');
+      refreshProfile(user.id);
+    }
+  }, [user]);
+
+  // Debug log for profile information
+  useEffect(() => {
+    if (profile) {
+      console.log('Current profile in BookingForm:', {
+        id: profile.id,
+        username: profile.username,
+        membership_type: profile.membership_type || 'No membership type found'
+      });
+    }
+  }, [profile]);
 
   const handleBookWithPayment = async () => {
     try {
