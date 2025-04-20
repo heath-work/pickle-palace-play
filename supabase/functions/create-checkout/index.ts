@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
@@ -237,6 +238,7 @@ serve(async (req) => {
     }
     
     const origin = req.headers.get("origin") || "http://localhost:5173";
+    let session;
     
     if (type === "membership") {
       const planKey = planId.toLowerCase();
@@ -300,18 +302,23 @@ serve(async (req) => {
     } else if (type === "booking") {
       logStep("Creating booking checkout");
       try {
+        // Fix: Use maybeSingle() instead of single() to handle no results case
         const { data: profileData, error: profileError } = await supabaseClient
           .from('profiles')
           .select('membership_type')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (profileError) {
           logStep("Error fetching user profile", { error: profileError.message });
-          throw new Error('Error fetching user profile');
+          return new Response(JSON.stringify({ error: `Error fetching user profile: ${profileError.message}` }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500,
+          });
         }
 
-        const membershipType = profileData?.membership_type;
+        // If profile not found, assume no membership discount
+        const membershipType = profileData?.membership_type || null;
         const discount = MEMBERSHIP_DISCOUNTS[membershipType as keyof typeof MEMBERSHIP_DISCOUNTS] || 0;
         const discountedPrice = Math.round(BASE_COURT_PRICE * (1 - discount));
 
@@ -344,7 +351,10 @@ serve(async (req) => {
         logStep("Created booking checkout session", { sessionId: session.id });
       } catch (error) {
         logStep("Error creating booking checkout session", { error: error.message });
-        throw error;
+        return new Response(JSON.stringify({ error: `Error creating checkout session: ${error.message}` }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        });
       }
     } else {
       logStep("Invalid checkout type", { type });
