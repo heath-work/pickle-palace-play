@@ -326,8 +326,9 @@ serve(async (req) => {
         // Log detailed profile information for debugging
         logStep("Profile data received", { 
           profileFound: !!profileData,
-          profileData: profileData,
-          rawMembershipType: profileData?.membership_type,
+          profileData,
+          rawMembershipType: profileData?.membership_type || 'null',
+          userId: user.id
         });
 
         // If profile not found, assume no membership discount
@@ -337,6 +338,16 @@ serve(async (req) => {
         let discount = 0;
         if (membershipType && MEMBERSHIP_DISCOUNTS.hasOwnProperty(membershipType)) {
           discount = MEMBERSHIP_DISCOUNTS[membershipType as keyof typeof MEMBERSHIP_DISCOUNTS];
+          logStep("Applying membership discount", { 
+            membershipType, 
+            discount, 
+            discountPercentage: `${discount * 100}%` 
+          });
+        } else {
+          logStep("No membership discount applied", { 
+            membershipType: membershipType || 'null', 
+            hasDiscount: false 
+          });
         }
         
         // Calculate price per hour with discount
@@ -349,6 +360,7 @@ serve(async (req) => {
           membershipType, 
           basePrice: BASE_COURT_PRICE,
           discount,
+          discountPercentage: `${discount * 100}%`,
           discountedHourlyPrice, 
           duration,
           totalPrice

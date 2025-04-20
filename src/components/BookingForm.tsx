@@ -41,7 +41,7 @@ const BookingForm = ({
   onDurationSelect,
   onBookingSubmit
 }: BookingFormProps) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [isProcessingPayment, setIsProcessingPayment] = React.useState(false);
 
   const handleBookWithPayment = async () => {
@@ -60,6 +60,12 @@ const BookingForm = ({
       
       // First, create the booking in database
       await onBookingSubmit();
+      
+      console.log('Creating checkout with details:', { 
+        court_id: bookingDetails.court_id,
+        duration_hours: bookingDetails.duration_hours,
+        membershipType: profile?.membership_type || 'None'
+      });
       
       // Then create a checkout session with booking details including duration
       const { data, error } = await supabase.functions.invoke('create-checkout', {
