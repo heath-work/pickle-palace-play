@@ -74,16 +74,74 @@ serve(async (req) => {
     
     // Create customer portal session
     logStep("Creating customer portal session");
-    const session = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: `${origin}/auth/profile`,
-    });
-    logStep("Created portal session", { sessionId: session.id });
     
-    return new Response(JSON.stringify({ url: session.url }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    // Create a simple billing portal configuration first
+    try {
+      const configurations = await stripe.billingPortal.configurations.list({
+        limit: 1,
+      });
+      
+      let configId;
+      
+      if (configurations.data.length === 0) {
+        logStep("No portal configuration found, creating a default one");
+        const configuration = await stripe.billingPortal.configurations.create({
+          business_profile: {
+            headline: "Pickle Palace Membership Management",
+          },
+          features: {
+            customer_update: {
+              enabled: true,
+              allowed_updates: ["email", "address", "shipping", "phone", "tax_id"],
+            },
+            invoice_history: { enabled: true },
+            payment_method_update: { enabled: true },
+            subscription_cancel: { enabled: true },
+            subscription_update: { enabled: true },
+          },
+        });
+        configId = configuration.id;
+        logStep("Created portal configuration", { configId });
+      } else {
+        configId = configurations.data[0].id;
+        logStep("Using existing portal configuration", { configId });
+      }
+      
+      // Create the session with the configuration
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: `${origin}/auth/profile`,
+        configuration: configId,
+      });
+      
+      logStep("Created portal session", { sessionId: session.id });
+      
+      return new Response(JSON.stringify({ url: session.url }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    } catch (error) {
+      logStep("Error creating portal configuration or session", { error: error.message });
+      
+      // Fallback: Try to create portal session without configuration
+      try {
+        logStep("Trying to create portal session without configuration");
+        const session = await stripe.billingPortal.sessions.create({
+          customer: customerId,
+          return_url: `${origin}/auth/profile`,
+        });
+        
+        logStep("Created portal session without configuration", { sessionId: session.id });
+        
+        return new Response(JSON.stringify({ url: session.url }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      } catch (fallbackError) {
+        logStep("Fallback also failed", { error: fallbackError.message });
+        throw fallbackError;
+      }
+    }
   } catch (error) {
     console.error("Customer portal error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
