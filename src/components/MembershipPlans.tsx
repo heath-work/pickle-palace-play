@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { CheckCircle, Loader2, User, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,10 +15,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-// Stripe product IDs for each membership plan
 const STRIPE_PRODUCTS = {
   basic: 'prod_S9VikH2CV6NBRy',
-  premium: 'prod_S9ViDXMS27q5uG', // Using Elite product ID for Premium since they're the same tier
+  premium: 'prod_S9ViDXMS27q5uG',
   elite: 'prod_S9ViDXMS27q5uG',
   founder: 'prod_S9VhRsmJf38RUc'
 };
@@ -111,7 +109,6 @@ const plans = [
   },
 ];
 
-// Email validation function
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
@@ -212,21 +209,18 @@ const MembershipPlans = () => {
       setIsLoading(true);
       setError(null);
       
-      // Validate inputs
       if (!email || !password) {
         setError('Email and password are required');
         toast.error('Email and password are required');
         return;
       }
       
-      // Validate email format
       if (!isValidEmail(email)) {
         setError('Please enter a valid email address');
         toast.error('Please enter a valid email address');
         return;
       }
       
-      // Validate password
       if (password.length < 6) {
         setError('Password must be at least 6 characters long');
         toast.error('Password must be at least 6 characters long');
@@ -332,26 +326,6 @@ const MembershipPlans = () => {
           <p className="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
             Choose the perfect membership plan for your pickleball journey.
           </p>
-          
-          {user && (
-            <div className="mt-6">
-              <Button 
-                variant="outline" 
-                onClick={handleManageSubscription}
-                disabled={loadingPlan === 'manage'}
-                className="flex items-center"
-              >
-                {loadingPlan === 'manage' ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
-                    Loading...
-                  </>
-                ) : (
-                  'Manage Your Subscription'
-                )}
-              </Button>
-            </div>
-          )}
         </div>
 
         <div className="mt-12 space-y-4 sm:mt-16 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-6 lg:max-w-4xl lg:mx-auto xl:max-w-none xl:grid-cols-4">
@@ -407,7 +381,6 @@ const MembershipPlans = () => {
         </div>
       </div>
 
-      {/* Signup Dialog */}
       <Dialog open={signupDialogOpen} onOpenChange={setSignupDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -428,7 +401,6 @@ const MembershipPlans = () => {
               </div>
             )}
             
-            {/* Show Sign In Form or Sign Up Form */}
             {showSignInForm ? (
               <>
                 <div className="space-y-2">

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, X, CreditCard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -27,6 +27,7 @@ type ProfileFormValues = z.infer<typeof formSchema>;
 const ProfilePage = () => {
   const { user, profile, updateProfile, signOut, isLoading } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingPortal, setIsLoadingPortal] = useState(false);
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
 
   const form = useForm<ProfileFormValues>({
@@ -102,6 +103,39 @@ const ProfilePage = () => {
     }
   };
 
+  const handleManageSubscription = async () => {
+    if (!user) {
+      toast.error('Please sign in to manage your subscription');
+      return;
+    }
+
+    try {
+      setIsLoadingPortal(true);
+      const { data, error } = await supabase.functions.invoke('create-subscription-portal', {});
+      
+      if (error) throw error;
+      
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No portal URL returned');
+      }
+    } catch (error) {
+      console.error('Error creating customer portal session:', error);
+      toast.error('Failed to access subscription management');
+    } finally {
+      setIsLoadingPortal(false);
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase();
+  };
+
   if (isLoading) {
     return (
       <Layout>
@@ -122,14 +156,6 @@ const ProfilePage = () => {
     setIsSaving(false);
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase();
-  };
-
   return (
     <Layout>
       <div className="py-12">
@@ -147,73 +173,109 @@ const ProfilePage = () => {
             <p className="text-gray-500">{user.email}</p>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Settings</CardTitle>
-              <CardDescription>Update your account information</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Username</FormLabel>
-                        <FormControl>
-                          <Input placeholder="username" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="full_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Full Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="John Doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="avatar_url"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Avatar URL</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://example.com/avatar.jpg" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="flex justify-between">
-                    <Button variant="outline" type="button" onClick={() => signOut()}>
-                      Sign Out
-                    </Button>
-                    <Button type="submit" disabled={isSaving}>
-                      {isSaving ? (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Membership Status</CardTitle>
+                <CardDescription>Manage your membership and subscription details</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium">Current Plan</p>
+                      <p className="text-2xl font-bold text-pickleball-blue">
+                        {profile?.membership_type || 'No active membership'}
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleManageSubscription}
+                      disabled={isLoadingPortal}
+                      className="flex items-center"
+                    >
+                      {isLoadingPortal ? (
                         <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Loading...
                         </>
                       ) : (
-                        'Save Changes'
+                        <>
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Manage Membership
+                        </>
                       )}
                     </Button>
                   </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-          <div className="mt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Profile Settings</CardTitle>
+                <CardDescription>Update your account information</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Username</FormLabel>
+                          <FormControl>
+                            <Input placeholder="username" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="full_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Full Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="John Doe" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="avatar_url"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Avatar URL</FormLabel>
+                          <FormControl>
+                            <Input placeholder="https://example.com/avatar.jpg" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex justify-between">
+                      <Button variant="outline" type="button" onClick={() => signOut()}>
+                        Sign Out
+                      </Button>
+                      <Button type="submit" disabled={isSaving}>
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving
+                          </>
+                        ) : (
+                          'Save Changes'
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>Upcoming Bookings</CardTitle>
