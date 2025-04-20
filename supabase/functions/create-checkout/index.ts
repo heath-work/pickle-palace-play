@@ -187,7 +187,7 @@ serve(async (req) => {
         }
         
         user = userData.user;
-        logStep("Got existing user", { userId: user.id });
+        logStep("Got existing user", { userId: user.id, email: user.email });
       } catch (error) {
         logStep("Error getting user from auth header", { error: error.message });
         return new Response(JSON.stringify({ error: `Error authenticating user: ${error.message}` }), {
@@ -307,7 +307,8 @@ serve(async (req) => {
         const duration = bookingDetails?.duration_hours || 1;
         logStep("Booking duration", { duration });
 
-        // Fix: Use maybeSingle() instead of single() to handle no results case
+        // Get the user profile to check membership
+        logStep("Fetching user profile", { userId: user.id });
         const { data: profileData, error: profileError } = await supabaseClient
           .from('profiles')
           .select('membership_type')
@@ -322,9 +323,21 @@ serve(async (req) => {
           });
         }
 
+        // Log detailed profile information for debugging
+        logStep("Profile data received", { 
+          profileFound: !!profileData,
+          profileData: profileData,
+          rawMembershipType: profileData?.membership_type,
+        });
+
         // If profile not found, assume no membership discount
         const membershipType = profileData?.membership_type || null;
-        const discount = MEMBERSHIP_DISCOUNTS[membershipType as keyof typeof MEMBERSHIP_DISCOUNTS] || 0;
+        
+        // Check if membership_type exists in our discount mapping
+        let discount = 0;
+        if (membershipType && MEMBERSHIP_DISCOUNTS.hasOwnProperty(membershipType)) {
+          discount = MEMBERSHIP_DISCOUNTS[membershipType as keyof typeof MEMBERSHIP_DISCOUNTS];
+        }
         
         // Calculate price per hour with discount
         const discountedHourlyPrice = Math.round(BASE_COURT_PRICE * (1 - discount));
