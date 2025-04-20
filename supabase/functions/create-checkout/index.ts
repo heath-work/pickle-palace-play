@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
@@ -15,9 +14,10 @@ const STRIPE_SECRET_KEY = "sk_test_51RFBFi086zbpX7xNyrvLpj5QDk2fnELRlzMpmYeDBBHw
 // Define product IDs
 const STRIPE_PRODUCT_IDS = {
   basic: 'prod_S9VikH2CV6NBRy',
-  premium: 'prod_S9ViDXMS27q5uG', // Using Elite product ID for Premium
+  premium: 'prod_S9ViDXMS27q5uG',
   elite: 'prod_S9ViDXMS27q5uG',
-  founder: 'prod_S9VhRsmJf38RUc'
+  founder: 'prod_S9VhRsmJf38RUc',
+  booking: 'prod_S9iCz9kVSN6ZqP'
 };
 
 // Helper function for logging
@@ -320,20 +320,26 @@ serve(async (req) => {
         });
       }
     } else if (type === "booking") {
-      // Create one-time payment checkout
+      // Create one-time payment checkout for booking
       logStep("Creating booking checkout");
       try {
+        const prices = await stripe.prices.list({
+          product: STRIPE_PRODUCT_IDS.booking,
+          active: true,
+          limit: 1
+        });
+
+        if (prices.data.length === 0) {
+          throw new Error('No active price found for court booking');
+        }
+
+        const price = prices.data[0];
+        
         session = await stripe.checkout.sessions.create({
           customer: customerId,
           payment_method_types: ["card"],
           line_items: [{
-            price_data: {
-              currency: "usd",
-              product_data: {
-                name: "Court Booking",
-              },
-              unit_amount: 2000, // $20.00
-            },
+            price: price.id,
             quantity: 1,
           }],
           mode: "payment",
