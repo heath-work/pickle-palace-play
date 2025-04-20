@@ -58,7 +58,7 @@ serve(async (req) => {
       });
     }
     
-    const { type, planId, email, password, fullName } = requestBody;
+    const { type, planId, email, password, fullName, bookingDetails } = requestBody;
     
     if (!type) {
       logStep("Missing required parameter", { parameter: "type" });
@@ -89,7 +89,8 @@ serve(async (req) => {
       planId, 
       email: email ? "***" : null,
       passwordProvided: !!password,
-      fullNameProvided: !!fullName 
+      fullNameProvided: !!fullName,
+      bookingDetailsProvided: !!bookingDetails
     });
     
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -302,6 +303,10 @@ serve(async (req) => {
     } else if (type === "booking") {
       logStep("Creating booking checkout");
       try {
+        // Get booking duration from request or default to 1
+        const duration = bookingDetails?.duration_hours || 1;
+        logStep("Booking duration", { duration });
+
         // Fix: Use maybeSingle() instead of single() to handle no results case
         const { data: profileData, error: profileError } = await supabaseClient
           .from('profiles')
@@ -320,13 +325,20 @@ serve(async (req) => {
         // If profile not found, assume no membership discount
         const membershipType = profileData?.membership_type || null;
         const discount = MEMBERSHIP_DISCOUNTS[membershipType as keyof typeof MEMBERSHIP_DISCOUNTS] || 0;
-        const discountedPrice = Math.round(BASE_COURT_PRICE * (1 - discount));
+        
+        // Calculate price per hour with discount
+        const discountedHourlyPrice = Math.round(BASE_COURT_PRICE * (1 - discount));
+        
+        // Multiply by duration for total price
+        const totalPrice = discountedHourlyPrice * duration;
 
         logStep("Calculating price", { 
           membershipType, 
           basePrice: BASE_COURT_PRICE,
           discount,
-          finalPrice: discountedPrice 
+          discountedHourlyPrice, 
+          duration,
+          totalPrice
         });
 
         session = await stripe.checkout.sessions.create({
@@ -336,10 +348,10 @@ serve(async (req) => {
             price_data: {
               currency: "usd",
               product_data: {
-                name: "Court Booking",
+                name: `Court Booking (${duration} hour${duration > 1 ? 's' : ''})`,
                 description: discount > 0 ? `Including ${discount * 100}% ${membershipType} member discount` : undefined
               },
-              unit_amount: discountedPrice,
+              unit_amount: totalPrice,
             },
             quantity: 1,
           }],
@@ -348,7 +360,13 @@ serve(async (req) => {
           cancel_url: `${origin}/booking`,
         });
         
-        logStep("Created booking checkout session", { sessionId: session.id });
+        logStep("Created booking checkout session", { 
+          sessionId: session.id,
+          price: totalPrice,
+          discountApplied: discount > 0,
+          discountPercentage: discount * 100,
+          membershipType
+        });
       } catch (error) {
         logStep("Error creating booking checkout session", { error: error.message });
         return new Response(JSON.stringify({ error: `Error creating checkout session: ${error.message}` }), {

@@ -61,11 +61,14 @@ const BookingForm = ({
       // First, create the booking in database
       await onBookingSubmit();
       
-      // Then create a checkout session
+      // Then create a checkout session with booking details including duration
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
           type: 'booking',
-          bookingId: bookingDetails.court_id // This would normally be the booking ID
+          bookingDetails: {
+            court_id: bookingDetails.court_id,
+            duration_hours: bookingDetails.duration_hours
+          }
         }
       });
       
