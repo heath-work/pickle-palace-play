@@ -100,37 +100,69 @@ serve(async (req) => {
       logStep("Attempting to sign up new user", { email: email ? "***" : null });
       
       try {
-        const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
+        // First check if user already exists
+        const { data: existingUser, error: checkError } = await supabaseClient.auth.signInWithPassword({
           email,
-          password,
-          options: {
-            data: {
-              full_name: fullName || ''
-            }
-          }
+          password
         });
         
-        if (signUpError) {
-          logStep("Signup error", { error: signUpError.message });
-          return new Response(JSON.stringify({ error: `Signup error: ${signUpError.message}` }), {
+        if (existingUser && existingUser.user) {
+          // User already exists and password matches, continue with this user
+          logStep("User already exists and authenticated", { userId: existingUser.user.id });
+          user = existingUser.user;
+        } else if (checkError && checkError.message.includes("Invalid login credentials")) {
+          // User may exist but password is wrong, or user doesn't exist
+          // Try to sign up the user
+          const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: fullName || ''
+              }
+            }
+          });
+          
+          if (signUpError) {
+            if (signUpError.message === "User already registered") {
+              logStep("User exists but with different password", { error: signUpError.message });
+              return new Response(JSON.stringify({ 
+                error: "This email is already registered with a different password. Please sign in first.",
+                code: "USER_EXISTS" 
+              }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 409, // Conflict
+              });
+            } else {
+              logStep("Signup error", { error: signUpError.message });
+              return new Response(JSON.stringify({ error: `Signup error: ${signUpError.message}` }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 400,
+              });
+            }
+          }
+          
+          user = signUpData.user;
+          
+          if (!user) {
+            logStep("Failed to create user account");
+            return new Response(JSON.stringify({ error: "Failed to create user account" }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 400,
+            });
+          }
+          logStep("User signed up successfully", { userId: user.id });
+        } else {
+          // Some other error occurred during sign-in check
+          logStep("Error checking existing user", { error: checkError?.message });
+          return new Response(JSON.stringify({ error: `Error checking existing user: ${checkError?.message}` }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 400,
           });
         }
-        
-        user = signUpData.user;
-        
-        if (!user) {
-          logStep("Failed to create user account");
-          return new Response(JSON.stringify({ error: "Failed to create user account" }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 400,
-          });
-        }
-        logStep("User signed up successfully", { userId: user.id });
       } catch (error) {
-        logStep("Unexpected error during signup", { error: error.message });
-        return new Response(JSON.stringify({ error: `Unexpected error during signup: ${error.message}` }), {
+        logStep("Unexpected error during signup/signin", { error: error.message });
+        return new Response(JSON.stringify({ error: `Unexpected error during authentication: ${error.message}` }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 500,
         });

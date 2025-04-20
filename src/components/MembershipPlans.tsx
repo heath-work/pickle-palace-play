@@ -118,7 +118,7 @@ const isValidEmail = (email: string): boolean => {
 };
 
 const MembershipPlans = () => {
-  const { user } = useAuth();
+  const { user, signIn } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<typeof plans[0] | null>(null);
@@ -127,6 +127,7 @@ const MembershipPlans = () => {
   const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSignInForm, setShowSignInForm] = useState(false);
 
   const handleSubscribe = async (plan: typeof plans[0]) => {
     if (!user) {
@@ -169,6 +170,38 @@ const MembershipPlans = () => {
       toast.error('Failed to initiate checkout');
     } finally {
       setLoadingPlan(null);
+    }
+  };
+
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      setError('Email and password are required');
+      toast.error('Email and password are required');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const { error: signInError } = await signIn(email, password);
+      
+      if (signInError) {
+        setError(`Sign in error: ${signInError.message}`);
+        toast.error(`Sign in error: ${signInError.message}`);
+        return;
+      }
+      
+      if (selectedPlan) {
+        handleSubscribe(selectedPlan);
+      }
+      
+      setSignupDialogOpen(false);
+    } catch (error: any) {
+      setError(`Error: ${error.message || 'Failed to sign in'}`);
+      toast.error('Failed to sign in');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -229,6 +262,13 @@ const MembershipPlans = () => {
       
       if (data.error) {
         console.error('Error from edge function:', data.error);
+        
+        if (data.code === 'USER_EXISTS') {
+          setError(data.error);
+          setShowSignInForm(true);
+          return;
+        }
+        
         setError(`Error: ${data.error}`);
         toast.error('Failed to create account and checkout');
         return;
@@ -275,6 +315,11 @@ const MembershipPlans = () => {
     } finally {
       setLoadingPlan(null);
     }
+  };
+
+  const toggleForm = () => {
+    setShowSignInForm(!showSignInForm);
+    setError(null);
   };
 
   return (
@@ -366,9 +411,14 @@ const MembershipPlans = () => {
       <Dialog open={signupDialogOpen} onOpenChange={setSignupDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Create an account to continue</DialogTitle>
+            <DialogTitle>
+              {showSignInForm ? 'Sign in to continue' : 'Create an account to continue'}
+            </DialogTitle>
             <DialogDescription>
-              Sign up to subscribe to the {selectedPlan?.name} plan.
+              {showSignInForm 
+                ? `Sign in to subscribe to the ${selectedPlan?.name} plan.`
+                : `Sign up to subscribe to the ${selectedPlan?.name} plan.`
+              }
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -377,71 +427,136 @@ const MembershipPlans = () => {
                 {error}
               </div>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="fullName"
-                  placeholder="John Doe"
-                  className="pl-9"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="email"
-                  placeholder="you@example.com"
-                  className="pl-9"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  className="pl-9"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <p className="text-xs text-gray-500">Password must be at least 6 characters long</p>
-              </div>
-            </div>
-            <div className="flex justify-between items-center pt-4">
-              <Button variant="outline" onClick={() => setSignupDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleSignupAndSubscribe} 
-                disabled={!email || !password || isLoading}
-                className="bg-pickleball-blue hover:bg-blue-600"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
-                    Processing...
-                  </>
-                ) : (
-                  'Sign Up & Continue'
-                )}
-              </Button>
-            </div>
+            
+            {/* Show Sign In Form or Sign Up Form */}
+            {showSignInForm ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="signin-email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signin-email"
+                      placeholder="you@example.com"
+                      className="pl-9"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signin-password">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signin-password"
+                      type="password"
+                      placeholder="••••••••"
+                      className="pl-9"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-between items-center pt-4">
+                  <Button variant="outline" onClick={toggleForm}>
+                    Need an account?
+                  </Button>
+                  <Button 
+                    onClick={handleSignIn} 
+                    disabled={!email || !password || isLoading}
+                    className="bg-pickleball-blue hover:bg-blue-600"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                        Signing in...
+                      </>
+                    ) : (
+                      'Sign In & Continue'
+                    )}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="fullName"
+                      placeholder="John Doe"
+                      className="pl-9"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="email"
+                      placeholder="you@example.com"
+                      className="pl-9"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      className="pl-9"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-gray-500">Password must be at least 6 characters long</p>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center pt-4">
+                  <Button variant="outline" onClick={toggleForm}>
+                    Already have an account?
+                  </Button>
+                  <Button 
+                    onClick={handleSignupAndSubscribe} 
+                    disabled={!email || !password || isLoading}
+                    className="bg-pickleball-blue hover:bg-blue-600"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                        Processing...
+                      </>
+                    ) : (
+                      'Sign Up & Continue'
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
+            
             <p className="text-xs text-center text-gray-500 mt-4">
-              Already have an account? <Link to="/auth/signin" className="text-pickleball-blue hover:underline">Sign in</Link> instead.
+              {showSignInForm ? 
+                "Don't have an account?" : 
+                "Already have an account?"} 
+              <button 
+                onClick={toggleForm} 
+                className="text-pickleball-blue hover:underline ml-1"
+              >
+                {showSignInForm ? "Sign up" : "Sign in"}
+              </button> instead.
             </p>
           </div>
         </DialogContent>
