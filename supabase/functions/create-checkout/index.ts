@@ -20,6 +20,7 @@ const STRIPE_PRODUCT_IDS = {
   booking: 'prod_S9iCz9kVSN6ZqP'
 };
 
+// Fixed discount percentages directly based on membership type
 const MEMBERSHIP_DISCOUNTS = {
   "Premium": 0.10, // 10% off
   "Elite": 0.15,   // 15% off
@@ -334,33 +335,33 @@ serve(async (req) => {
         // If profile not found, assume no membership discount
         const membershipType = profileData?.membership_type || null;
         
-        // Check if membership_type exists in our discount mapping
+        // SIMPLIFIED DISCOUNT LOGIC - Direct application based on membership type
         let discount = 0;
-        if (membershipType && MEMBERSHIP_DISCOUNTS.hasOwnProperty(membershipType)) {
-          discount = MEMBERSHIP_DISCOUNTS[membershipType as keyof typeof MEMBERSHIP_DISCOUNTS];
-          logStep("Applying membership discount", { 
-            membershipType, 
-            discount, 
-            discountPercentage: `${discount * 100}%` 
-          });
+        if (membershipType === "Premium") {
+          discount = 0.10; // 10% off
+          logStep("Applying Premium discount", { discount: "10%" });
+        } else if (membershipType === "Elite") {
+          discount = 0.15; // 15% off
+          logStep("Applying Elite discount", { discount: "15%" });
+        } else if (membershipType === "Founder") {
+          discount = 0.25; // 25% off
+          logStep("Applying Founder discount", { discount: "25%" });
         } else {
-          logStep("No membership discount applied", { 
-            membershipType: membershipType || 'null', 
-            hasDiscount: false 
-          });
+          logStep("No membership discount applied", { membershipType: membershipType || 'null' });
         }
         
-        // Calculate price per hour with discount
-        const discountedHourlyPrice = Math.round(BASE_COURT_PRICE * (1 - discount));
-        
-        // Multiply by duration for total price
+        // Calculate price with more detailed logging
+        const basePrice = BASE_COURT_PRICE;
+        const discountAmount = Math.round(basePrice * discount);
+        const discountedHourlyPrice = basePrice - discountAmount;
         const totalPrice = discountedHourlyPrice * duration;
 
         logStep("Calculating price", { 
           membershipType, 
-          basePrice: BASE_COURT_PRICE,
+          basePrice,
           discount,
           discountPercentage: `${discount * 100}%`,
+          discountAmount,
           discountedHourlyPrice, 
           duration,
           totalPrice
