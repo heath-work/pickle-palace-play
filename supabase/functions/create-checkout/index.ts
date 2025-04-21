@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
@@ -27,7 +26,8 @@ const MEMBERSHIP_DISCOUNTS = {
   "Founder": 0.25  // 25% off
 };
 
-const BASE_COURT_PRICE = 6000; // $60.00 in cents
+// Base court price in cents ($60.00)
+const BASE_COURT_PRICE = 6000;
 
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
@@ -344,15 +344,9 @@ serve(async (req) => {
         
         // Direct application of discount based on membership type
         let discount = 0;
-        if (membershipType === "Premium") {
-          discount = 0.10; // 10% off
-          logStep("Applying Premium discount", { discount: "10%" });
-        } else if (membershipType === "Elite") {
-          discount = 0.15; // 15% off
-          logStep("Applying Elite discount", { discount: "15%" });
-        } else if (membershipType === "Founder") {
-          discount = 0.25; // 25% off
-          logStep("Applying Founder discount", { discount: "25%" });
+        if (membershipType && MEMBERSHIP_DISCOUNTS[membershipType]) {
+          discount = MEMBERSHIP_DISCOUNTS[membershipType];
+          logStep(`Applying ${membershipType} discount`, { discount: `${discount * 100}%` });
         } else {
           logStep("No membership discount applied", { membershipType: membershipType || 'null' });
         }
