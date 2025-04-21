@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Clock, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,7 @@ const BookingForm = ({
 }: BookingFormProps) => {
   const { user, profile, refreshProfile } = useAuth();
   const [isProcessingPayment, setIsProcessingPayment] = React.useState(false);
+  const [membershipType, setMembershipType] = useState<string | null>(null);
 
   // Ensure we have the latest profile data when component mounts
   useEffect(() => {
@@ -50,7 +51,15 @@ const BookingForm = ({
       console.log('BookingForm: Refreshing profile data on mount');
       refreshProfile(user.id);
     }
-  }, [user]);
+  }, [user, refreshProfile]);
+
+  // Once profile is loaded, store membership type in local state
+  useEffect(() => {
+    if (profile) {
+      console.log('Setting membership type from profile:', profile.membership_type);
+      setMembershipType(profile.membership_type);
+    }
+  }, [profile]);
 
   // Debug log for profile information
   useEffect(() => {
@@ -58,10 +67,11 @@ const BookingForm = ({
       console.log('Current profile in BookingForm:', {
         id: profile.id,
         username: profile.username,
-        membership_type: profile.membership_type || 'No membership type found'
+        membership_type: profile.membership_type || 'No membership type found',
+        localMembershipType: membershipType
       });
     }
-  }, [profile]);
+  }, [profile, membershipType]);
 
   const handlePayment = async () => {
     try {
@@ -77,10 +87,11 @@ const BookingForm = ({
         return;
       }
       
+      // Always use our local state for membership type which is guaranteed to be loaded
       console.log('Creating checkout with details:', { 
         court_id: bookingDetails.court_id,
         duration_hours: bookingDetails.duration_hours,
-        membershipType: profile?.membership_type || 'None',
+        membershipType: membershipType || 'None',
         booking_date: format(bookingDetails.booking_date, 'yyyy-MM-dd'),
         time_slot_id: bookingDetails.time_slot_id
       });
@@ -94,7 +105,7 @@ const BookingForm = ({
             booking_date: format(bookingDetails.booking_date, 'yyyy-MM-dd'),
             time_slot_id: bookingDetails.time_slot_id,
             duration_hours: bookingDetails.duration_hours,
-            membership_type: profile?.membership_type || null // Explicitly include membership type
+            membership_type: membershipType // Use our local state variable
           }
         }
       });
@@ -116,6 +127,23 @@ const BookingForm = ({
       setIsProcessingPayment(false);
     }
   };
+
+  // Log membership discount for debugging
+  const getMembershipDiscount = () => {
+    if (!membershipType) return 0;
+    if (membershipType === "Premium") return 0.10;
+    if (membershipType === "Elite") return 0.15;
+    if (membershipType === "Founder") return 0.25;
+    return 0;
+  };
+
+  useEffect(() => {
+    // Debug log current discount whenever membership type changes
+    console.log('Current membership discount:', {
+      membershipType,
+      discountPercentage: getMembershipDiscount() * 100 + '%'
+    });
+  }, [membershipType]);
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -203,6 +231,20 @@ const BookingForm = ({
             </SelectContent>
           </Select>
         </div>
+
+        {membershipType && (
+          <div className="p-3 bg-green-50 border border-green-100 rounded-md">
+            <p className="text-sm text-green-700">
+              <span className="font-medium">Active membership: </span>
+              {membershipType}
+              {getMembershipDiscount() > 0 && (
+                <span className="ml-1">
+                  ({getMembershipDiscount() * 100}% discount applied)
+                </span>
+              )}
+            </p>
+          </div>
+        )}
 
         <Button 
           className="w-full bg-pickleball-blue hover:bg-blue-600" 

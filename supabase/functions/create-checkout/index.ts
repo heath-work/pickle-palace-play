@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
@@ -20,17 +19,14 @@ const STRIPE_PRODUCT_IDS = {
   booking: 'prod_S9iCz9kVSN6ZqP'
 };
 
-// Fixed discount percentages directly based on membership type
 const MEMBERSHIP_DISCOUNTS = {
   "Premium": 0.10, // 10% off
   "Elite": 0.15,   // 15% off
   "Founder": 0.25  // 25% off
 };
 
-// Base court price in cents ($60.00)
 const BASE_COURT_PRICE = 6000;
 
-// Set currency to AUD instead of USD
 const CURRENCY = "aud";
 
 const logStep = (step: string, details?: any) => {
@@ -295,7 +291,7 @@ serve(async (req) => {
           mode: "subscription",
           success_url: `${origin}/membership-success?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${origin}/membership`,
-          currency: CURRENCY, // Set currency to AUD
+          currency: CURRENCY,
         });
         
         logStep("Created subscription checkout session", { sessionId: session.id });
@@ -309,7 +305,6 @@ serve(async (req) => {
     } else if (type === "booking") {
       logStep("Creating booking checkout");
       try {
-        // Store the full booking details in metadata for creating the booking after payment
         const bookingMetadata = {
           user_id: user.id,
           court_id: bookingDetails.court_id,
@@ -320,51 +315,20 @@ serve(async (req) => {
         
         logStep("Booking metadata", bookingMetadata);
         
-        // Get membership type from the request body
-        const membershipTypeFromRequest = bookingDetails.membership_type;
-        logStep("Membership type from request", { membershipTypeFromRequest });
+        const membershipType = bookingDetails.membership_type;
+        logStep("Membership type from request", { membershipType, typeOf: typeof membershipType });
         
-        // If membership type is provided in the request, use it directly
-        let membershipType = membershipTypeFromRequest;
-        
-        // If not provided in the request, fetch from user profile as fallback
-        if (!membershipType) {
-          logStep("No membership type in request, fetching from profile", { userId: user.id });
-          const { data: profileData, error: profileError } = await supabaseClient
-            .from('profiles')
-            .select('membership_type')
-            .eq('id', user.id)
-            .maybeSingle();
-
-          if (profileError) {
-            logStep("Error fetching user profile", { error: profileError.message });
-            return new Response(JSON.stringify({ error: `Error fetching user profile: ${profileError.message}` }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-              status: 500,
-            });
-          }
-
-          // Log detailed profile information for debugging
-          logStep("Profile data received", { 
-            profileFound: !!profileData,
-            profileData,
-            rawMembershipType: profileData?.membership_type || 'null',
-            userId: user.id
-          });
-
-          membershipType = profileData?.membership_type || null;
-        }
-        
-        // Direct application of discount based on membership type
         let discount = 0;
-        if (membershipType && MEMBERSHIP_DISCOUNTS[membershipType]) {
-          discount = MEMBERSHIP_DISCOUNTS[membershipType];
+        if (membershipType) {
+          if (membershipType === "Premium") discount = 0.10;
+          else if (membershipType === "Elite") discount = 0.15;
+          else if (membershipType === "Founder") discount = 0.25;
+          
           logStep(`Applying ${membershipType} discount`, { discount: `${discount * 100}%` });
         } else {
-          logStep("No membership discount applied", { membershipType: membershipType || 'null' });
+          logStep("No membership discount applied", { membershipType: 'null' });
         }
         
-        // Calculate price with more detailed logging
         const basePrice = BASE_COURT_PRICE;
         const discountAmount = Math.round(basePrice * discount);
         const discountedHourlyPrice = basePrice - discountAmount;
@@ -382,7 +346,6 @@ serve(async (req) => {
           totalPrice
         });
 
-        // Get time slot info for the description
         const { data: timeSlotData } = await supabaseClient
           .from('time_slots')
           .select('start_time')
@@ -391,7 +354,6 @@ serve(async (req) => {
           
         const startTime = timeSlotData?.start_time.substring(0, 5) || '';
         
-        // Get court info for the description
         const { data: courtData } = await supabaseClient
           .from('courts')
           .select('name')
@@ -405,7 +367,7 @@ serve(async (req) => {
           payment_method_types: ["card"],
           line_items: [{
             price_data: {
-              currency: CURRENCY, // Set currency to AUD
+              currency: CURRENCY,
               product_data: {
                 name: `Court Booking: ${courtName}`,
                 description: `${bookingDetails.booking_date} at ${startTime} (${duration} hour${duration > 1 ? 's' : ''})${discount > 0 ? ` - Including ${discount * 100}% ${membershipType} member discount` : ''}`
