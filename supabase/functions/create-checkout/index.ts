@@ -320,32 +320,40 @@ serve(async (req) => {
         
         logStep("Booking metadata", bookingMetadata);
         
-        // Get the user profile to check membership
-        logStep("Fetching user profile", { userId: user.id });
-        const { data: profileData, error: profileError } = await supabaseClient
-          .from('profiles')
-          .select('membership_type')
-          .eq('id', user.id)
-          .maybeSingle();
+        // Get membership type from the request body
+        const membershipTypeFromRequest = bookingDetails.membership_type;
+        logStep("Membership type from request", { membershipTypeFromRequest });
+        
+        // If membership type is provided in the request, use it directly
+        let membershipType = membershipTypeFromRequest;
+        
+        // If not provided in the request, fetch from user profile as fallback
+        if (!membershipType) {
+          logStep("No membership type in request, fetching from profile", { userId: user.id });
+          const { data: profileData, error: profileError } = await supabaseClient
+            .from('profiles')
+            .select('membership_type')
+            .eq('id', user.id)
+            .maybeSingle();
 
-        if (profileError) {
-          logStep("Error fetching user profile", { error: profileError.message });
-          return new Response(JSON.stringify({ error: `Error fetching user profile: ${profileError.message}` }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 500,
+          if (profileError) {
+            logStep("Error fetching user profile", { error: profileError.message });
+            return new Response(JSON.stringify({ error: `Error fetching user profile: ${profileError.message}` }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 500,
+            });
+          }
+
+          // Log detailed profile information for debugging
+          logStep("Profile data received", { 
+            profileFound: !!profileData,
+            profileData,
+            rawMembershipType: profileData?.membership_type || 'null',
+            userId: user.id
           });
+
+          membershipType = profileData?.membership_type || null;
         }
-
-        // Log detailed profile information for debugging
-        logStep("Profile data received", { 
-          profileFound: !!profileData,
-          profileData,
-          rawMembershipType: profileData?.membership_type || 'null',
-          userId: user.id
-        });
-
-        // If profile not found, assume no membership discount
-        const membershipType = profileData?.membership_type || null;
         
         // Direct application of discount based on membership type
         let discount = 0;

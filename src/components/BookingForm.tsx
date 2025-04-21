@@ -93,7 +93,8 @@ const BookingForm = ({
             court_id: bookingDetails.court_id,
             booking_date: format(bookingDetails.booking_date, 'yyyy-MM-dd'),
             time_slot_id: bookingDetails.time_slot_id,
-            duration_hours: bookingDetails.duration_hours
+            duration_hours: bookingDetails.duration_hours,
+            membership_type: profile?.membership_type || null // Explicitly include membership type
           }
         }
       });
