@@ -9,7 +9,7 @@ import BookingForm from './BookingForm';
 import BookingCalendar from './BookingCalendar';
 import { Badge } from '@/components/ui/badge';
 
-const BASE_COURT_PRICE = 60; // $60 per hour
+const BASE_COURT_PRICE = 60; // $60 per hour in AUD
 
 const BookingSystem = () => {
   const { user, profile, refreshProfile } = useAuth();

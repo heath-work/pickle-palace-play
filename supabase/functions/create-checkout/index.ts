@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
@@ -28,6 +29,9 @@ const MEMBERSHIP_DISCOUNTS = {
 
 // Base court price in cents ($60.00)
 const BASE_COURT_PRICE = 6000;
+
+// Set currency to AUD instead of USD
+const CURRENCY = "aud";
 
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
@@ -291,6 +295,7 @@ serve(async (req) => {
           mode: "subscription",
           success_url: `${origin}/membership-success?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${origin}/membership`,
+          currency: CURRENCY, // Set currency to AUD
         });
         
         logStep("Created subscription checkout session", { sessionId: session.id });
@@ -392,7 +397,7 @@ serve(async (req) => {
           payment_method_types: ["card"],
           line_items: [{
             price_data: {
-              currency: "usd",
+              currency: CURRENCY, // Set currency to AUD
               product_data: {
                 name: `Court Booking: ${courtName}`,
                 description: `${bookingDetails.booking_date} at ${startTime} (${duration} hour${duration > 1 ? 's' : ''})${discount > 0 ? ` - Including ${discount * 100}% ${membershipType} member discount` : ''}`
@@ -412,7 +417,8 @@ serve(async (req) => {
           price: totalPrice,
           discountApplied: discount > 0,
           discountPercentage: discount * 100,
-          membershipType
+          membershipType,
+          currency: CURRENCY
         });
       } catch (error) {
         logStep("Error creating booking checkout session", { error: error.message });
