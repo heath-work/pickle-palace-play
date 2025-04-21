@@ -8,10 +8,17 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { Court } from '@/types/supabase';
+import { Session } from '@/types/sessions';
+
+interface CreateSessionModalProps {
+  courts: Court[];
+  onSessionCreated: (session: Session) => void;
+}
 
 const skillLevels = ['Beginner', 'Intermediate', 'Advanced', 'All Levels'];
 
-const CreateSessionModal = ({ courts, onSessionCreated }) => {
+const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessionCreated }) => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -25,7 +32,7 @@ const CreateSessionModal = ({ courts, onSessionCreated }) => {
     skill_level: 'All Levels',
   });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (!user) {
@@ -33,6 +40,7 @@ const CreateSessionModal = ({ courts, onSessionCreated }) => {
         return;
       }
 
+      // Using any here to avoid TypeScript errors until Supabase types are updated
       const { data, error } = await supabase
         .from('sessions')
         .insert({
@@ -41,7 +49,7 @@ const CreateSessionModal = ({ courts, onSessionCreated }) => {
           is_active: true,
         })
         .select()
-        .single();
+        .single() as { data: any; error: any };
 
       if (error) throw error;
 
@@ -61,7 +69,7 @@ const CreateSessionModal = ({ courts, onSessionCreated }) => {
         skill_level: 'All Levels',
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating session:', error);
       toast.error('Failed to create session');
     }

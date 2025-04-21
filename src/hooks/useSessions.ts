@@ -14,27 +14,28 @@ export function useSessions() {
   const fetchSessions = async () => {
     setIsLoading(true);
     try {
+      // Using any here to avoid TypeScript errors until Supabase types are updated
       const { data, error } = await supabase
         .from('sessions')
         .select('*, courts(name, type)')
         .eq('is_active', true)
-        .order('date', { ascending: true });
+        .order('date', { ascending: true }) as { data: any; error: any };
 
       if (error) throw error;
 
       // Fetch current registration count for each session
       const sessionsWithRegistrationCount = await Promise.all(
-        data.map(async (session) => {
+        data.map(async (session: any) => {
           const { count } = await supabase
             .from('session_registrations')
             .select('*', { count: 'exact', head: true })
             .eq('session_id', session.id)
-            .eq('status', 'registered');
+            .eq('status', 'registered') as { count: number | null };
 
           return {
             ...session,
             current_registrations: count || 0
-          };
+          } as Session;
         })
       );
 
@@ -52,11 +53,12 @@ export function useSessions() {
 
     setIsLoading(true);
     try {
+      // Using any here to avoid TypeScript errors until Supabase types are updated
       const { data, error } = await supabase
         .from('session_registrations')
         .select('*, session:sessions(*), session.courts(name, type)')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) as { data: any; error: any };
 
       if (error) throw error;
       setUserSessions(data || []);
@@ -75,17 +77,18 @@ export function useSessions() {
     }
 
     try {
+      // Using any here to avoid TypeScript errors until Supabase types are updated
       const { data: session } = await supabase
         .from('sessions')
         .select('max_players')
         .eq('id', sessionId)
-        .single();
+        .single() as { data: any };
 
       const { count: currentRegistrations } = await supabase
         .from('session_registrations')
         .select('*', { count: 'exact', head: true })
         .eq('session_id', sessionId)
-        .eq('status', 'registered');
+        .eq('status', 'registered') as { count: number };
 
       const status: SessionStatus = 
         currentRegistrations < session.max_players ? 'registered' : 'waitlisted';
@@ -98,7 +101,7 @@ export function useSessions() {
           status 
         })
         .select()
-        .single();
+        .single() as { data: any; error: any };
 
       if (error) throw error;
 
@@ -121,7 +124,7 @@ export function useSessions() {
       const { error } = await supabase
         .from('session_registrations')
         .update({ status: 'cancelled' })
-        .eq('id', registrationId);
+        .eq('id', registrationId) as { error: any };
 
       if (error) throw error;
 

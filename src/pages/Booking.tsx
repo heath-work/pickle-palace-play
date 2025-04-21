@@ -1,8 +1,6 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Calendar } from 'lucide-react';
 import BookingSystem from '@/components/BookingSystem';
 import SessionList from '@/components/SessionList';
 

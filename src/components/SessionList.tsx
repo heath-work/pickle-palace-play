@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,15 +7,32 @@ import { useSessions } from '@/hooks/useSessions';
 import { useAuth } from '@/contexts/AuthContext';
 import { Clock, Users, MapPin } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import CreateSessionModal from './CreateSessionModal';
+import { Court } from '@/types/supabase';
+import { Session } from '@/types/sessions';
 
 const SessionList = () => {
-  const { sessions, userSessions, registerForSession, cancelSessionRegistration, isLoading } = useSessions();
+  const { sessions, userSessions, registerForSession, cancelSessionRegistration, isLoading, fetchSessions } = useSessions();
   const { user } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [courts, setCourts] = useState<Court[]>([]);
+
+  useEffect(() => {
+    const fetchCourts = async () => {
+      const { data } = await supabase.from('courts').select('*');
+      if (data) setCourts(data);
+    };
+    
+    fetchCourts();
+  }, []);
 
   const filteredSessions = selectedFilter === 'my' 
-    ? userSessions.map(us => us.session)
+    ? userSessions.map(us => us.session as Session).filter(Boolean)
     : sessions;
+
+  const handleSessionCreated = (newSession: Session) => {
+    fetchSessions();
+  };
 
   return (
     <div className="space-y-6">
@@ -35,6 +52,10 @@ const SessionList = () => {
             My Sessions
           </Button>
         </div>
+        
+        {user && (
+          <CreateSessionModal courts={courts} onSessionCreated={handleSessionCreated} />
+        )}
       </div>
 
       {isLoading ? (
