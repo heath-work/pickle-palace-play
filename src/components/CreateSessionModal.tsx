@@ -40,8 +40,8 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
         return;
       }
 
-      // Using any here to avoid TypeScript errors until Supabase types are updated
-      const { data, error } = await supabase
+      // Using type assertion to bypass TypeScript errors
+      const { data, error } = await (supabase
         .from('sessions')
         .insert({
           ...formData,
@@ -49,7 +49,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
           is_active: true,
         })
         .select()
-        .single() as { data: any; error: any };
+        .single() as any);
 
       if (error) throw error;
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +9,7 @@ import { format, parseISO } from 'date-fns';
 import CreateSessionModal from './CreateSessionModal';
 import { Court } from '@/types/supabase';
 import { Session } from '@/types/sessions';
+import { supabase } from '@/integrations/supabase/client';
 
 const SessionList = () => {
   const { sessions, userSessions, registerForSession, cancelSessionRegistration, isLoading, fetchSessions } = useSessions();

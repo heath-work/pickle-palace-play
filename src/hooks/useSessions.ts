@@ -14,23 +14,23 @@ export function useSessions() {
   const fetchSessions = async () => {
     setIsLoading(true);
     try {
-      // Using any here to avoid TypeScript errors until Supabase types are updated
-      const { data, error } = await supabase
+      // Using type assertions to bypass TypeScript errors
+      const { data, error } = await (supabase
         .from('sessions')
         .select('*, courts(name, type)')
         .eq('is_active', true)
-        .order('date', { ascending: true }) as { data: any; error: any };
+        .order('date', { ascending: true }) as any);
 
       if (error) throw error;
 
       // Fetch current registration count for each session
       const sessionsWithRegistrationCount = await Promise.all(
         data.map(async (session: any) => {
-          const { count } = await supabase
+          const { count } = await (supabase
             .from('session_registrations')
             .select('*', { count: 'exact', head: true })
             .eq('session_id', session.id)
-            .eq('status', 'registered') as { count: number | null };
+            .eq('status', 'registered') as any);
 
           return {
             ...session,
@@ -53,12 +53,12 @@ export function useSessions() {
 
     setIsLoading(true);
     try {
-      // Using any here to avoid TypeScript errors until Supabase types are updated
-      const { data, error } = await supabase
+      // Using type assertions to bypass TypeScript errors
+      const { data, error } = await (supabase
         .from('session_registrations')
         .select('*, session:sessions(*), session.courts(name, type)')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false }) as { data: any; error: any };
+        .order('created_at', { ascending: false }) as any);
 
       if (error) throw error;
       setUserSessions(data || []);
@@ -77,23 +77,23 @@ export function useSessions() {
     }
 
     try {
-      // Using any here to avoid TypeScript errors until Supabase types are updated
-      const { data: session } = await supabase
+      // Using type assertions to bypass TypeScript errors
+      const { data: session } = await (supabase
         .from('sessions')
         .select('max_players')
         .eq('id', sessionId)
-        .single() as { data: any };
+        .single() as any);
 
-      const { count: currentRegistrations } = await supabase
+      const { count: currentRegistrations } = await (supabase
         .from('session_registrations')
         .select('*', { count: 'exact', head: true })
         .eq('session_id', sessionId)
-        .eq('status', 'registered') as { count: number };
+        .eq('status', 'registered') as any);
 
       const status: SessionStatus = 
         currentRegistrations < session.max_players ? 'registered' : 'waitlisted';
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('session_registrations')
         .insert({ 
           session_id: sessionId, 
@@ -101,7 +101,7 @@ export function useSessions() {
           status 
         })
         .select()
-        .single() as { data: any; error: any };
+        .single() as any);
 
       if (error) throw error;
 
@@ -121,10 +121,10 @@ export function useSessions() {
 
   const cancelSessionRegistration = async (registrationId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase
         .from('session_registrations')
         .update({ status: 'cancelled' })
-        .eq('id', registrationId) as { error: any };
+        .eq('id', registrationId) as any);
 
       if (error) throw error;
 
