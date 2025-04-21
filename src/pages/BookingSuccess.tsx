@@ -4,21 +4,58 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, Loader2, Calendar } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 const BookingSuccess = () => {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const [bookingDetails, setBookingDetails] = useState<any>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
-    // In a production app, you would verify the session with Stripe here
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
+    if (sessionId && user) {
+      createBookingFromStripeSession(sessionId);
+    } else {
+      // If no session ID found, still show success after a short delay
+      setTimeout(() => setIsLoading(false), 1500);
+    }
+  }, [sessionId, user]);
 
-    return () => clearTimeout(timer);
-  }, [sessionId]);
+  const createBookingFromStripeSession = async (sessionId: string) => {
+    try {
+      // Call our Supabase Edge Function to verify payment and create booking
+      const { data, error } = await supabase.functions.invoke('process-booking-payment', {
+        body: { 
+          sessionId,
+          userId: user?.id
+        }
+      });
+
+      if (error) {
+        console.error('Error processing booking payment:', error);
+        toast.error('There was an issue confirming your booking');
+        setIsLoading(false);
+        return;
+      }
+
+      if (data?.success) {
+        setBookingDetails(data.booking);
+        toast.success('Court booked successfully!');
+      } else {
+        console.error('Booking process failed:', data);
+        toast.error('There was an issue confirming your booking');
+      }
+    } catch (error) {
+      console.error('Error creating booking from session:', error);
+      toast.error('Failed to complete booking');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Layout>

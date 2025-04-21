@@ -1,14 +1,29 @@
 
 project_id = "lhlbcclbjzxkxgppmuvp"
 
-[functions.check-subscription]
-verify_jwt = true
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost:54321"
+
+[inbucket]
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
 
 [functions.create-checkout]
 verify_jwt = true
 
-[functions.create-subscription-portal]
-verify_jwt = true
-
-[functions.update-profile-membership]
+[functions.process-booking-payment]
 verify_jwt = true

@@ -304,10 +304,17 @@ serve(async (req) => {
     } else if (type === "booking") {
       logStep("Creating booking checkout");
       try {
-        // Get booking duration from request or default to 1
-        const duration = bookingDetails?.duration_hours || 1;
-        logStep("Booking duration", { duration });
-
+        // Store the full booking details in metadata for creating the booking after payment
+        const bookingMetadata = {
+          user_id: user.id,
+          court_id: bookingDetails.court_id,
+          booking_date: bookingDetails.booking_date,
+          time_slot_id: bookingDetails.time_slot_id,
+          duration_hours: bookingDetails.duration_hours || 1
+        };
+        
+        logStep("Booking metadata", bookingMetadata);
+        
         // Get the user profile to check membership
         logStep("Fetching user profile", { userId: user.id });
         const { data: profileData, error: profileError } = await supabaseClient
@@ -335,7 +342,7 @@ serve(async (req) => {
         // If profile not found, assume no membership discount
         const membershipType = profileData?.membership_type || null;
         
-        // SIMPLIFIED DISCOUNT LOGIC - Direct application based on membership type
+        // Direct application of discount based on membership type
         let discount = 0;
         if (membershipType === "Premium") {
           discount = 0.10; // 10% off
@@ -354,6 +361,7 @@ serve(async (req) => {
         const basePrice = BASE_COURT_PRICE;
         const discountAmount = Math.round(basePrice * discount);
         const discountedHourlyPrice = basePrice - discountAmount;
+        const duration = bookingDetails.duration_hours || 1;
         const totalPrice = discountedHourlyPrice * duration;
 
         logStep("Calculating price", { 
@@ -367,6 +375,24 @@ serve(async (req) => {
           totalPrice
         });
 
+        // Get time slot info for the description
+        const { data: timeSlotData } = await supabaseClient
+          .from('time_slots')
+          .select('start_time')
+          .eq('id', bookingDetails.time_slot_id)
+          .single();
+          
+        const startTime = timeSlotData?.start_time.substring(0, 5) || '';
+        
+        // Get court info for the description
+        const { data: courtData } = await supabaseClient
+          .from('courts')
+          .select('name')
+          .eq('id', bookingDetails.court_id)
+          .single();
+          
+        const courtName = courtData?.name || 'Court';
+          
         session = await stripe.checkout.sessions.create({
           customer: customerId,
           payment_method_types: ["card"],
@@ -374,14 +400,15 @@ serve(async (req) => {
             price_data: {
               currency: "usd",
               product_data: {
-                name: `Court Booking (${duration} hour${duration > 1 ? 's' : ''})`,
-                description: discount > 0 ? `Including ${discount * 100}% ${membershipType} member discount` : undefined
+                name: `Court Booking: ${courtName}`,
+                description: `${bookingDetails.booking_date} at ${startTime} (${duration} hour${duration > 1 ? 's' : ''})${discount > 0 ? ` - Including ${discount * 100}% ${membershipType} member discount` : ''}`
               },
               unit_amount: totalPrice,
             },
             quantity: 1,
           }],
           mode: "payment",
+          metadata: bookingMetadata,
           success_url: `${origin}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${origin}/booking`,
         });

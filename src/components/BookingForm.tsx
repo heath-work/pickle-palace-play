@@ -63,7 +63,7 @@ const BookingForm = ({
     }
   }, [profile]);
 
-  const handleBookWithPayment = async () => {
+  const handlePayment = async () => {
     try {
       setIsProcessingPayment(true);
       
@@ -77,21 +77,22 @@ const BookingForm = ({
         return;
       }
       
-      // First, create the booking in database
-      await onBookingSubmit();
-      
       console.log('Creating checkout with details:', { 
         court_id: bookingDetails.court_id,
         duration_hours: bookingDetails.duration_hours,
-        membershipType: profile?.membership_type || 'None'
+        membershipType: profile?.membership_type || 'None',
+        booking_date: format(bookingDetails.booking_date, 'yyyy-MM-dd'),
+        time_slot_id: bookingDetails.time_slot_id
       });
       
-      // Then create a checkout session with booking details including duration
+      // Create a checkout session with all booking details for creating the booking after payment
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
           type: 'booking',
           bookingDetails: {
             court_id: bookingDetails.court_id,
+            booking_date: format(bookingDetails.booking_date, 'yyyy-MM-dd'),
+            time_slot_id: bookingDetails.time_slot_id,
             duration_hours: bookingDetails.duration_hours
           }
         }
@@ -204,7 +205,7 @@ const BookingForm = ({
 
         <Button 
           className="w-full bg-pickleball-blue hover:bg-blue-600" 
-          onClick={handleBookWithPayment}
+          onClick={handlePayment}
           disabled={isLoading || isProcessingPayment || !user || !date || !bookingDetails.court_id || !bookingDetails.time_slot_id}
         >
           {isLoading || isProcessingPayment ? (
