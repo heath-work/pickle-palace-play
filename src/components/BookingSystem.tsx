@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -9,6 +8,8 @@ import TodaySessions from './TodaySessions';
 import BookingForm from './BookingForm';
 import BookingCalendar from './BookingCalendar';
 import { Badge } from '@/components/ui/badge';
+
+const BASE_COURT_PRICE = 60; // $60 per hour
 
 const BookingSystem = () => {
   const { user, profile, refreshProfile } = useAuth();
@@ -26,7 +27,6 @@ const BookingSystem = () => {
     checkAvailability
   } = useBooking();
 
-  // Ensure we have the latest profile data when component mounts
   useEffect(() => {
     if (user) {
       console.log('BookingSystem: Refreshing profile data on mount');
@@ -34,7 +34,6 @@ const BookingSystem = () => {
     }
   }, [user]);
 
-  // Debug log for profile information
   useEffect(() => {
     if (profile) {
       console.log('Current profile in BookingSystem:', {
@@ -150,31 +149,20 @@ const BookingSystem = () => {
     }
   };
 
-  // Get membership discount information based on user's membership type
-  const getMembershipDiscount = () => {
-    if (!profile) {
-      console.log('No profile available for discount calculation');
-      return null;
-    }
-    
-    if (!profile.membership_type) {
-      console.log('No membership_type in profile for discount calculation');
-      return null;
-    }
-    
-    console.log(`Calculating discount for membership type: ${profile.membership_type}`);
-    
-    const discounts: {[key: string]: string} = {
-      "Premium": "10%",
-      "Elite": "15%",
-      "Founder": "25%"
-    };
-    
-    return discounts[profile.membership_type] || null;
+  const getMembershipDiscountValue = () => {
+    if (!profile) return 0;
+    if (!profile.membership_type) return 0;
+    if (profile.membership_type === "Premium") return 0.10;
+    if (profile.membership_type === "Elite") return 0.15;
+    if (profile.membership_type === "Founder") return 0.25;
+    return 0;
   };
 
-  const membershipDiscount = getMembershipDiscount();
-  console.log('Calculated membership discount:', membershipDiscount);
+  const discountValue = getMembershipDiscountValue();
+  const hourlyPrice = BASE_COURT_PRICE;
+  const discountedHourlyPrice = Math.round(hourlyPrice * (1 - discountValue));
+  const duration = bookingDetails.duration_hours || 1;
+  const totalPrice = discountedHourlyPrice * duration;
 
   return (
     <div className="py-12 bg-white">
@@ -233,9 +221,9 @@ const BookingSystem = () => {
                       }>
                         {profile.membership_type || 'None'}
                       </Badge>
-                      {membershipDiscount && (
+                      {discountValue > 0 && (
                         <span className="text-sm text-green-600 font-medium mt-1">
-                          {membershipDiscount} off court bookings
+                          {Math.round(discountValue * 100)}% off court bookings
                         </span>
                       )}
                     </div>
@@ -263,8 +251,26 @@ const BookingSystem = () => {
                 </p>
                 <p className="flex items-center space-x-2">
                   <span className="font-medium">Duration:</span>
-                  <span>{bookingDetails.duration_hours} hour{bookingDetails.duration_hours > 1 ? 's' : ''}</span>
+                  <span>{duration} hour{duration > 1 ? 's' : ''}</span>
                 </p>
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium">Court Hire Price:</span>
+                  {bookingDetails.court_id && bookingDetails.time_slot_id ? (
+                    <span>
+                      ${discountedHourlyPrice} × {duration} = 
+                      <span className="ml-1 font-semibold text-pickleball-blue">
+                        ${totalPrice}
+                      </span>
+                      {discountValue > 0 && (
+                        <span className="ml-2 text-xs text-green-600">
+                          (discount applied)
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="italic text-gray-400">Select court &amp; time</span>
+                  )}
+                </div>
                 <div className="pt-4 border-t border-gray-200">
                   <ul className="space-y-2">
                     <li>• Cancellations available up to 24h before</li>
