@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ const skillLevels = ['Beginner', 'Intermediate', 'Advanced', 'All Levels'];
 const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessionCreated }) => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -31,20 +33,47 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
     skill_level: 'All Levels',
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
+  // Check admin status when component mounts or user changes
+  React.useEffect(() => {
+    const checkAdminStatus = async () => {
       if (!user) {
-        toast.error('You must be logged in to create a session');
+        setIsAdmin(false);
         return;
       }
 
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .single();
+
+      if (data) {
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(false);
+        if (error) console.error('Error checking admin status:', error);
+      }
+    };
+
+    checkAdminStatus();
+  }, [user]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!isAdmin) {
+      toast.error('Only administrators can create sessions');
+      return;
+    }
+
+    try {
       const { data, error } = await supabase
         .from('sessions')
         .insert({
           ...formData,
           court_id: parseInt(formData.court_id),
-          created_by: user.id,
+          created_by: user!.id,
           is_active: true,
         })
         .select()
@@ -73,6 +102,9 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
       toast.error('Failed to create session');
     }
   };
+
+  // Only render modal if user is an admin
+  if (!isAdmin) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
