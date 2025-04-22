@@ -17,7 +17,6 @@ const SessionList = () => {
   const { user } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [courts, setCourts] = useState<Court[]>([]);
-  const [registrationCounts, setRegistrationCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const fetchCourts = async () => {

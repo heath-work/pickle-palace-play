@@ -1,17 +1,56 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import Hero from '@/components/Hero';
 import Features from '@/components/Features';
 import MembershipPlans from '@/components/MembershipPlans';
+import UpcomingSessions from '@/components/UpcomingSessions';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { useSessions } from '@/hooks/useSessions';
+import { Session } from '@/types/sessions';
+import { format, isToday, parseISO } from 'date-fns';
 
 const Index = () => {
+  const { sessions, isLoading } = useSessions();
+  const [upcomingSessions, setUpcomingSessions] = useState<Session[]>([]);
+
+  useEffect(() => {
+    if (sessions.length > 0) {
+      // Filter sessions for today's date
+      const today = new Date().toISOString().split('T')[0];
+      const todaySessions = sessions.filter(session => 
+        session.date === today
+      );
+      
+      // If not enough sessions for today, include upcoming ones
+      if (todaySessions.length < 3) {
+        const futureSessions = sessions
+          .filter(session => session.date > today)
+          .sort((a, b) => a.date.localeCompare(b.date));
+          
+        const combined = [...todaySessions, ...futureSessions];
+        setUpcomingSessions(combined.slice(0, 3));
+      } else {
+        // Sort today's sessions by start time
+        const sortedTodaySessions = todaySessions
+          .sort((a, b) => a.start_time.localeCompare(b.start_time));
+          
+        setUpcomingSessions(sortedTodaySessions.slice(0, 3));
+      }
+    }
+  }, [sessions]);
+
   return (
     <Layout>
       <Hero />
       <Features />
+      
+      <UpcomingSessions 
+        sessions={upcomingSessions}
+        isLoading={isLoading}
+      />
+      
       <MembershipPlans />
       
       <div className="bg-pickleball-blue py-16">
