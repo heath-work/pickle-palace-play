@@ -15,31 +15,52 @@ export function useSessions() {
   const fetchSessions = async () => {
     setIsLoading(true);
     try {
+      console.log('Fetching all available sessions');
       const { data, error } = await supabase
         .from('sessions')
         .select('*, courts(name, type)')
         .eq('is_active', true)
         .order('date', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching sessions:', error);
+        throw error;
+      }
 
       // Fetch current registration count for each session
       const sessionsWithRegistrationCount = await Promise.all(
         (data || []).map(async (session) => {
-          const { count } = await supabase
-            .from('session_registrations')
-            .select('*', { count: 'exact', head: true })
-            .eq('session_id', session.id)
-            .eq('status', 'registered');
+          try {
+            const { count, error: countError } = await supabase
+              .from('session_registrations')
+              .select('*', { count: 'exact', head: true })
+              .eq('session_id', session.id)
+              .eq('status', 'registered');
 
-          return {
-            ...session,
-            current_registrations: count || 0
-          } as Session;
+            if (countError) {
+              console.error('Error fetching registration count:', countError);
+              return {
+                ...session,
+                current_registrations: 0
+              } as Session;
+            }
+
+            return {
+              ...session,
+              current_registrations: count || 0
+            } as Session;
+          } catch (countErr) {
+            console.error('Exception fetching registration count:', countErr);
+            return {
+              ...session,
+              current_registrations: 0
+            } as Session;
+          }
         })
       );
 
       setSessions(sessionsWithRegistrationCount);
+      console.log('Sessions fetched successfully:', sessionsWithRegistrationCount.length);
     } catch (error) {
       console.error('Error fetching sessions:', error);
       toast.error('Failed to load sessions');
@@ -49,50 +70,65 @@ export function useSessions() {
   };
 
   const fetchUserSessions = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user logged in, skipping user sessions fetch');
+      setUserSessions([]);
+      return;
+    }
 
     setIsLoading(true);
     try {
-      // First approach: Join sessions and courts separately to prevent nesting issues
+      console.log('Fetching registrations for user:', user.id);
       const { data: registrations, error } = await supabase
         .from('session_registrations')
-        .select('id, session_id, user_id, status, created_at, updated_at')
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching user registrations:', error);
+        throw error;
+      }
+
+      console.log('User registrations found:', registrations?.length || 0);
       
-      // Then fetch the full session data for each registration
-      if (registrations && registrations.length > 0) {
-        const userSessionsWithData = await Promise.all(
-          registrations.map(async (registration) => {
-            const { data: sessionData, error: sessionError } = await supabase
-              .from('sessions')
-              .select('*, courts(name, type)')
-              .eq('id', registration.session_id)
-              .single();
-              
-            if (sessionError) {
-              console.error('Error fetching session details:', sessionError);
-              return {
-                ...registration,
-                session: null
-              } as SessionRegistration;
-            }
-            
-            return {
+      if (!registrations || registrations.length === 0) {
+        setUserSessions([]);
+        return;
+      }
+      
+      // Create an array to store the complete session registrations
+      const completeRegistrations: SessionRegistration[] = [];
+      
+      // Fetch session details for each registration
+      for (const registration of registrations) {
+        try {
+          const { data: sessionData, error: sessionError } = await supabase
+            .from('sessions')
+            .select('*, courts(name, type)')
+            .eq('id', registration.session_id)
+            .maybeSingle();
+          
+          if (sessionError) {
+            console.error('Error fetching session details:', sessionError);
+            continue;
+          }
+          
+          if (sessionData) {
+            completeRegistrations.push({
               ...registration,
               session: sessionData
-            } as SessionRegistration;
-          })
-        );
-        
-        setUserSessions(userSessionsWithData.filter(reg => reg.session !== null));
-      } else {
-        setUserSessions([]);
+            } as SessionRegistration);
+          }
+        } catch (sessionErr) {
+          console.error('Exception fetching session details:', sessionErr);
+        }
       }
+      
+      setUserSessions(completeRegistrations);
+      console.log('User sessions processed successfully:', completeRegistrations.length);
     } catch (error) {
-      console.error('Error fetching user sessions:', error);
+      console.error('Error in fetchUserSessions:', error);
       toast.error('Failed to load your sessions');
     } finally {
       setIsLoading(false);
@@ -106,17 +142,33 @@ export function useSessions() {
     }
 
     try {
-      const { data: session } = await supabase
+      console.log('Registering for session:', sessionId);
+      const { data: session, error: sessionError } = await supabase
         .from('sessions')
         .select('max_players')
         .eq('id', sessionId)
-        .single();
+        .maybeSingle();
 
-      const { count } = await supabase
+      if (sessionError) {
+        console.error('Error fetching session for registration:', sessionError);
+        throw sessionError;
+      }
+
+      if (!session) {
+        console.error('Session not found for registration');
+        throw new Error('Session not found');
+      }
+
+      const { count, error: countError } = await supabase
         .from('session_registrations')
         .select('*', { count: 'exact', head: true })
         .eq('session_id', sessionId)
         .eq('status', 'registered');
+
+      if (countError) {
+        console.error('Error counting registrations:', countError);
+        throw countError;
+      }
 
       const status: SessionStatus = 
         (count || 0) < (session?.max_players || 0) ? 'registered' : 'waitlisted';
@@ -131,7 +183,10 @@ export function useSessions() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error registering for session:', error);
+        throw error;
+      }
 
       toast.success(`Successfully ${status === 'waitlisted' ? 'waitlisted' : 'registered'} for the session`);
       
@@ -149,12 +204,16 @@ export function useSessions() {
 
   const cancelSessionRegistration = async (registrationId: string) => {
     try {
+      console.log('Cancelling session registration:', registrationId);
       const { error } = await supabase
         .from('session_registrations')
         .update({ status: 'cancelled' })
         .eq('id', registrationId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error cancelling registration:', error);
+        throw error;
+      }
 
       toast.success('Successfully cancelled session registration');
       
@@ -169,7 +228,14 @@ export function useSessions() {
 
   useEffect(() => {
     fetchSessions();
-    if (user) fetchUserSessions();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserSessions();
+    } else {
+      setUserSessions([]);
+    }
   }, [user]);
 
   return {
