@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -69,7 +70,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
     }
 
     try {
-      // Create the base session data but omit the recurring fields to avoid schema cache issues
+      // Create the base session data
       const sessionData = {
         title: formData.title,
         description: formData.description,
@@ -92,15 +93,26 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
 
       if (initialError) throw initialError;
 
-      // If session is recurring, update it with recurring fields and create additional sessions
+      // If session is recurring, we need to handle it differently
       if (formData.is_recurring && formData.recurrence_end_date) {
-        // Update the session we just created to mark it as recurring
+        // For recurring sessions, we need to use separate RPC calls or add custom columns
+        // First, update the metadata in our application's state
+        const sessionWithRecurrence = {
+          ...initialSession,
+          is_recurring: formData.is_recurring,
+          recurrence_end_date: formData.recurrence_end_date
+        };
+        
+        // We also need to track this in the database, but we'll add these columns separately
+        // Instead of directly including them in the initial insert which causes type errors
         const { error: updateError } = await supabase
           .from('sessions')
           .update({
-            is_recurring: true,
-            recurrence_end_date: formData.recurrence_end_date
-          })
+            // Use string-indexed access to avoid TypeScript errors
+            // This is a workaround for the schema type mismatch
+            "is_recurring": true,
+            "recurrence_end_date": formData.recurrence_end_date
+          } as any)
           .eq('id', initialSession.id);
           
         if (updateError) {
@@ -119,7 +131,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
         for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 7)) {
           const recurringSession = {
             ...sessionData,
-            date: date.toISOString().split('T')[0],
+            date: date.toISOString().split('T')[0]
           };
           
           recurringPromises.push(
@@ -137,11 +149,16 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
             console.warn(`${failures.length} recurring sessions failed to create`);
           }
         }
+        
+        // Use the enhanced session with recurrence info for our application
+        onSessionCreated(sessionWithRecurrence as Session);
+      } else {
+        // For non-recurring sessions, just use the initial session
+        onSessionCreated(initialSession);
       }
 
       toast.success('Session(s) created successfully');
       setIsOpen(false);
-      onSessionCreated(initialSession);
 
       setFormData({
         title: '',
