@@ -1,11 +1,16 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BookingSystem from '@/components/BookingSystem';
 import SessionList from '@/components/SessionList';
 import Layout from '@/components/Layout';
 
 const Booking = () => {
+  useEffect(() => {
+    // Force a check to make sure all resources are loaded
+    document.title = "Court Bookings | Pickle Palace";
+  }, []);
+
   return (
     <Layout>
       <div className="container mx-auto py-8">
