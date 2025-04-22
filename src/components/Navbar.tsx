@@ -46,6 +46,9 @@ const Navbar = () => {
             <Link to="/booking" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
               Book a Court
             </Link>
+            <Link to="/group-play" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
+              Group Play
+            </Link>
             
             {user ? (
               <Link to="/auth/profile" className="flex items-center px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
@@ -118,6 +121,13 @@ const Navbar = () => {
             >
               Book a Court
             </Link>
+            <Link
+              to="/group-play"
+              className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Group Play
+            </Link>
             
             {user ? (
               <Link 
@@ -159,3 +169,4 @@ const Navbar = () => {
 };
 
 export default Navbar;
+
