@@ -43,6 +43,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
         .from('sessions')
         .insert({
           ...formData,
+          court_id: parseInt(formData.court_id),
           created_by: user.id,
           is_active: true,
         })

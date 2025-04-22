@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -53,14 +52,14 @@ export function useSessions() {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: registrations, error } = await supabase
         .from('session_registrations')
-        .select('*, session:sessions(*), session.courts(name, type)')
+        .select('*, session:sessions(*), session:sessions(courts(name, type))')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setUserSessions(data || []);
+      setUserSessions(registrations as SessionRegistration[]);
     } catch (error) {
       console.error('Error fetching user sessions:', error);
       toast.error('Failed to load your sessions');
