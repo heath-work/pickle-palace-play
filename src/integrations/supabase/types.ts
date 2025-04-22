@@ -110,6 +110,97 @@ export type Database = {
         }
         Relationships: []
       }
+      session_registrations: {
+        Row: {
+          created_at: string | null
+          id: string
+          session_id: string
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          session_id: string
+          status: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          session_id?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_registrations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          court_id: number
+          created_at: string | null
+          created_by: string
+          date: string
+          description: string | null
+          end_time: string
+          id: string
+          is_active: boolean | null
+          max_players: number
+          skill_level: string | null
+          start_time: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          court_id: number
+          created_at?: string | null
+          created_by: string
+          date: string
+          description?: string | null
+          end_time: string
+          id?: string
+          is_active?: boolean | null
+          max_players: number
+          skill_level?: string | null
+          start_time: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          court_id?: number
+          created_at?: string | null
+          created_by?: string
+          date?: string
+          description?: string | null
+          end_time?: string
+          id?: string
+          is_active?: boolean | null
+          max_players?: number
+          skill_level?: string | null
+          start_time?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_court_id_fkey"
+            columns: ["court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_slots: {
         Row: {
           created_at: string | null

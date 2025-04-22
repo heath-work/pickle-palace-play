@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -40,8 +39,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
         return;
       }
 
-      // Using type assertion to bypass TypeScript errors
-      const { data, error } = await (supabase
+      const { data, error } = await supabase
         .from('sessions')
         .insert({
           ...formData,
@@ -49,7 +47,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
           is_active: true,
         })
         .select()
-        .single() as any);
+        .single();
 
       if (error) throw error;
 

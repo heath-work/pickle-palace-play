@@ -32,3 +32,4 @@ export type SessionRegistration = {
   user?: Pick<User, 'email' | 'id'>;
   session?: Session;
 };
+
