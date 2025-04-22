@@ -16,6 +16,8 @@ export type Session = {
   skill_level?: string;
   is_active: boolean;
   created_by: string;
+  is_recurring?: boolean;
+  recurrence_end_date?: string;
   courts?: {
     name: string;
     type: string;
