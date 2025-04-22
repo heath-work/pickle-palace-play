@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -52,14 +53,44 @@ export function useSessions() {
 
     setIsLoading(true);
     try {
+      // First approach: Join sessions and courts separately to prevent nesting issues
       const { data: registrations, error } = await supabase
         .from('session_registrations')
-        .select('*, session:sessions(*), session:sessions(courts(name, type))')
+        .select('id, session_id, user_id, status, created_at, updated_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setUserSessions(registrations as SessionRegistration[]);
+      
+      // Then fetch the full session data for each registration
+      if (registrations && registrations.length > 0) {
+        const userSessionsWithData = await Promise.all(
+          registrations.map(async (registration) => {
+            const { data: sessionData, error: sessionError } = await supabase
+              .from('sessions')
+              .select('*, courts(name, type)')
+              .eq('id', registration.session_id)
+              .single();
+              
+            if (sessionError) {
+              console.error('Error fetching session details:', sessionError);
+              return {
+                ...registration,
+                session: null
+              } as SessionRegistration;
+            }
+            
+            return {
+              ...registration,
+              session: sessionData
+            } as SessionRegistration;
+          })
+        );
+        
+        setUserSessions(userSessionsWithData.filter(reg => reg.session !== null));
+      } else {
+        setUserSessions([]);
+      }
     } catch (error) {
       console.error('Error fetching user sessions:', error);
       toast.error('Failed to load your sessions');
