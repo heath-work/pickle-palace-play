@@ -144,6 +144,21 @@ export function useSessions() {
 
     try {
       console.log('Registering for session:', sessionId);
+      
+      // First, check if there's an existing registration (even cancelled ones)
+      const { data: existingRegistration, error: checkError } = await supabase
+        .from('session_registrations')
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (checkError) {
+        console.error('Error checking existing registration:', checkError);
+        throw checkError;
+      }
+
+      // Get session details for max players limit
       const { data: session, error: sessionError } = await supabase
         .from('sessions')
         .select('max_players')
@@ -160,6 +175,7 @@ export function useSessions() {
         throw new Error('Session not found');
       }
 
+      // Count current registrations to determine status
       const { count, error: countError } = await supabase
         .from('session_registrations')
         .select('*', { count: 'exact', head: true })
@@ -174,15 +190,37 @@ export function useSessions() {
       const status: SessionStatus = 
         (count || 0) < (session?.max_players || 0) ? 'registered' : 'waitlisted';
 
-      const { data, error } = await supabase
-        .from('session_registrations')
-        .insert({ 
-          session_id: sessionId, 
-          user_id: user.id, 
-          status 
-        })
-        .select()
-        .single();
+      let data;
+      let error;
+
+      if (existingRegistration) {
+        // If registration exists (even if cancelled), update it
+        console.log('Updating existing registration:', existingRegistration.id);
+        const result = await supabase
+          .from('session_registrations')
+          .update({ status })
+          .eq('id', existingRegistration.id)
+          .select()
+          .single();
+          
+        data = result.data;
+        error = result.error;
+      } else {
+        // Create a new registration if none exists
+        console.log('Creating new registration for session');
+        const result = await supabase
+          .from('session_registrations')
+          .insert({ 
+            session_id: sessionId, 
+            user_id: user.id, 
+            status 
+          })
+          .select()
+          .single();
+          
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) {
         console.error('Error registering for session:', error);
