@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,9 +31,10 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
     end_time: '',
     max_players: 8,
     skill_level: 'All Levels',
+    is_recurring: false,
+    recurrence_end_date: '',
   });
 
-  // Check admin status when component mounts or user changes
   React.useEffect(() => {
     const checkAdminStatus = async () => {
       if (!user) {
@@ -68,24 +69,47 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
     }
 
     try {
+      const sessionData = {
+        ...formData,
+        court_id: parseInt(formData.court_id),
+        created_by: user!.id,
+        is_active: true,
+      };
+
+      if (!formData.is_recurring) {
+        delete sessionData.recurrence_end_date;
+      }
+
       const { data, error } = await supabase
         .from('sessions')
-        .insert({
-          ...formData,
-          court_id: parseInt(formData.court_id),
-          created_by: user!.id,
-          is_active: true,
-        })
+        .insert(sessionData)
         .select()
         .single();
 
       if (error) throw error;
 
-      toast.success('Session created successfully');
+      if (formData.is_recurring && formData.recurrence_end_date) {
+        const startDate = new Date(formData.date);
+        const endDate = new Date(formData.recurrence_end_date);
+        
+        for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 7)) {
+          if (date > startDate) {
+            const recurringSession = {
+              ...sessionData,
+              date: date.toISOString().split('T')[0],
+            };
+            
+            await supabase
+              .from('sessions')
+              .insert(recurringSession);
+          }
+        }
+      }
+
+      toast.success('Session(s) created successfully');
       setIsOpen(false);
       onSessionCreated(data);
 
-      // Reset form
       setFormData({
         title: '',
         description: '',
@@ -95,6 +119,8 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
         end_time: '',
         max_players: 8,
         skill_level: 'All Levels',
+        is_recurring: false,
+        recurrence_end_date: '',
       });
 
     } catch (error: any) {
@@ -103,7 +129,6 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
     }
   };
 
-  // Only render modal if user is an admin
   if (!isAdmin) return null;
 
   return (
@@ -153,9 +178,27 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
             </Select>
           </div>
           
+          <div className="space-y-4">
+            <Label>Is this a recurring session?</Label>
+            <RadioGroup
+              defaultValue="false"
+              onValueChange={(value) => setFormData({...formData, is_recurring: value === 'true'})}
+              className="flex items-center space-x-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="false" id="non-recurring" />
+                <Label htmlFor="non-recurring">One-time</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="true" id="recurring" />
+                <Label htmlFor="recurring">Weekly recurring</Label>
+              </div>
+            </RadioGroup>
+          </div>
+          
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Date</Label>
+              <Label>Start Date</Label>
               <Input 
                 type="date" 
                 value={formData.date}
@@ -163,17 +206,18 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
                 required 
               />
             </div>
-            <div>
-              <Label>Max Players</Label>
-              <Input 
-                type="number" 
-                value={formData.max_players}
-                onChange={(e) => setFormData({...formData, max_players: Number(e.target.value)})}
-                min={2}
-                max={20}
-                required 
-              />
-            </div>
+            {formData.is_recurring && (
+              <div>
+                <Label>End Date</Label>
+                <Input 
+                  type="date" 
+                  value={formData.recurrence_end_date}
+                  onChange={(e) => setFormData({...formData, recurrence_end_date: e.target.value})}
+                  required 
+                  min={formData.date}
+                />
+              </div>
+            )}
           </div>
           
           <div className="grid grid-cols-2 gap-4">
@@ -216,7 +260,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
             </Select>
           </div>
           
-          <Button type="submit" className="w-full">Create Session</Button>
+          <Button type="submit" className="w-full">Create Session{formData.is_recurring ? 's' : ''}</Button>
         </form>
       </DialogContent>
     </Dialog>
@@ -224,4 +268,3 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
 };
 
 export default CreateSessionModal;
-
