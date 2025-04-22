@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Session, SessionRegistration, SessionStatus } from '@/types/sessions';
@@ -12,7 +12,7 @@ export function useSessions() {
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     setIsLoading(true);
     try {
       console.log('Fetching all available sessions');
@@ -67,9 +67,9 @@ export function useSessions() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const fetchUserSessions = async () => {
+  const fetchUserSessions = useCallback(async () => {
     if (!user) {
       console.log('No user logged in, skipping user sessions fetch');
       setUserSessions([]);
@@ -134,7 +134,7 @@ export function useSessions() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   const registerForSession = async (sessionId: string) => {
     if (!user) {
@@ -271,7 +271,7 @@ export function useSessions() {
 
   useEffect(() => {
     fetchSessions();
-  }, []);
+  }, [fetchSessions]);
 
   useEffect(() => {
     if (user) {
@@ -279,7 +279,7 @@ export function useSessions() {
     } else {
       setUserSessions([]);
     }
-  }, [user]);
+  }, [user, fetchUserSessions]);
 
   return {
     sessions,

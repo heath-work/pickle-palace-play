@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +17,7 @@ const SessionList = () => {
   const { user } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [courts, setCourts] = useState<Court[]>([]);
+  const [registrationCounts, setRegistrationCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const fetchCourts = async () => {
@@ -25,6 +27,29 @@ const SessionList = () => {
     
     fetchCourts();
   }, []);
+
+  useEffect(() => {
+    // Set up realtime subscription to session_registrations table
+    const channel = supabase
+      .channel('session-registrations-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'session_registrations'
+        },
+        (_) => {
+          // Any change to registrations should trigger a refresh of sessions
+          fetchSessions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchSessions]);
 
   const filteredSessions = selectedFilter === 'my' 
     ? userSessions.map(us => us.session as Session).filter(Boolean)
