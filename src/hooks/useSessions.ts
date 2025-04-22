@@ -83,6 +83,7 @@ export function useSessions() {
         .from('session_registrations')
         .select('*')
         .eq('user_id', user.id)
+        .not('status', 'eq', 'cancelled') // Only fetch non-cancelled registrations
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -215,11 +216,15 @@ export function useSessions() {
         throw error;
       }
 
+      // Remove the cancelled registration from the state directly
+      setUserSessions(prevSessions => 
+        prevSessions.filter(session => session.id !== registrationId)
+      );
+
       toast.success('Successfully cancelled session registration');
       
       // Refresh sessions after cancellation
       await fetchSessions();
-      await fetchUserSessions();
     } catch (error: any) {
       console.error('Error cancelling session registration:', error);
       toast.error(error.message || 'Failed to cancel session registration');
