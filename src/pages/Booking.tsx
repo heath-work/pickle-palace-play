@@ -1,31 +1,18 @@
-
 import React, { useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BookingSystem from '@/components/BookingSystem';
-import SessionList from '@/components/SessionList';
 import Layout from '@/components/Layout';
 
 const Booking = () => {
   useEffect(() => {
-    // Force a check to make sure all resources are loaded
     document.title = "Court Bookings | Pickle Palace";
   }, []);
 
   return (
     <Layout>
       <div className="container mx-auto py-8">
-        <Tabs defaultValue="bookings" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="bookings">Court Bookings</TabsTrigger>
-            <TabsTrigger value="sessions">Group Sessions</TabsTrigger>
-          </TabsList>
-          <TabsContent value="bookings">
-            <BookingSystem />
-          </TabsContent>
-          <TabsContent value="sessions">
-            <SessionList />
-          </TabsContent>
-        </Tabs>
+        {/* Removed Group Sessions tab for clarity */}
+        <BookingSystem />
       </div>
     </Layout>
   );

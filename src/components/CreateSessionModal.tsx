@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -26,15 +25,16 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    court_id: '',
+    court_ids: [] as string[],
     date: '',
     start_time: '',
     end_time: '',
-    max_players: 8,
     skill_level: 'All Levels',
     is_recurring: false,
     recurrence_end_date: '',
   });
+
+  const max_players = Math.max(4, (formData.court_ids.length || 1) * 4);
 
   React.useEffect(() => {
     const checkAdminStatus = async () => {
@@ -63,98 +63,68 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!isAdmin) {
       toast.error('Only administrators can create sessions');
       return;
     }
 
     try {
-      // Create the base session data
-      const sessionData = {
+      const sessionDataArr = formData.court_ids.map(courtId => ({
         title: formData.title,
         description: formData.description,
-        court_id: parseInt(formData.court_id),
+        court_id: parseInt(courtId),
         date: formData.date,
         start_time: formData.start_time,
         end_time: formData.end_time,
-        max_players: formData.max_players,
+        max_players: 4,
         skill_level: formData.skill_level,
         created_by: user!.id,
         is_active: true,
-      };
+      }));
 
-      // First create the initial session
-      const { data: initialSession, error: initialError } = await supabase
+      const { data: initialSessions, error: initialError } = await supabase
         .from('sessions')
-        .insert(sessionData)
-        .select()
-        .single();
+        .insert(sessionDataArr)
+        .select();
 
       if (initialError) throw initialError;
 
-      // If session is recurring, we need to handle it differently
       if (formData.is_recurring && formData.recurrence_end_date) {
-        // For recurring sessions, we need to use separate RPC calls or add custom columns
-        // First, update the metadata in our application's state
-        const sessionWithRecurrence = {
-          ...initialSession,
-          is_recurring: formData.is_recurring,
-          recurrence_end_date: formData.recurrence_end_date
-        };
-        
-        // We also need to track this in the database, but we'll add these columns separately
-        // Instead of directly including them in the initial insert which causes type errors
-        const { error: updateError } = await supabase
-          .from('sessions')
-          .update({
-            // Use string-indexed access to avoid TypeScript errors
-            // This is a workaround for the schema type mismatch
-            "is_recurring": true,
-            "recurrence_end_date": formData.recurrence_end_date
-          } as any)
-          .eq('id', initialSession.id);
-          
-        if (updateError) {
-          console.error('Error updating session with recurring info:', updateError);
-          // Continue anyway as we've already created the first session
-        }
-        
-        // Create additional recurring sessions
         const startDate = new Date(formData.date);
         const endDate = new Date(formData.recurrence_end_date);
-        
-        // Skip the first date as we've already created it
-        startDate.setDate(startDate.getDate() + 7);
-        
-        const recurringPromises = [];
-        for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 7)) {
-          const recurringSession = {
-            ...sessionData,
-            date: date.toISOString().split('T')[0]
-          };
-          
-          recurringPromises.push(
-            supabase
-              .from('sessions')
-              .insert(recurringSession)
-          );
+
+        const recurringSessions = [];
+        let nextDate = new Date(startDate.getTime());
+        nextDate.setDate(nextDate.getDate() + 7);
+
+        while (nextDate <= endDate) {
+          for (const courtId of formData.court_ids) {
+            recurringSessions.push({
+              title: formData.title,
+              description: formData.description,
+              court_id: parseInt(courtId),
+              date: nextDate.toISOString().split('T')[0],
+              start_time: formData.start_time,
+              end_time: formData.end_time,
+              max_players: 4,
+              skill_level: formData.skill_level,
+              created_by: user!.id,
+              is_active: true,
+            });
+          }
+          nextDate.setDate(nextDate.getDate() + 7);
         }
-        
-        // Wait for all recurring sessions to be created
-        if (recurringPromises.length > 0) {
-          const results = await Promise.allSettled(recurringPromises);
-          const failures = results.filter(r => r.status === 'rejected');
-          if (failures.length > 0) {
-            console.warn(`${failures.length} recurring sessions failed to create`);
+
+        if (recurringSessions.length > 0) {
+          const { error: recurringError } = await supabase
+            .from('sessions')
+            .insert(recurringSessions);
+
+          if (recurringError) {
+            console.warn('Some recurring sessions failed:', recurringError);
           }
         }
-        
-        // Use the enhanced session with recurrence info for our application
-        onSessionCreated(sessionWithRecurrence as Session);
-      } else {
-        // For non-recurring sessions, just use the initial session
-        onSessionCreated(initialSession);
       }
 
       toast.success('Session(s) created successfully');
@@ -163,16 +133,18 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
       setFormData({
         title: '',
         description: '',
-        court_id: '',
+        court_ids: [],
         date: '',
         start_time: '',
         end_time: '',
-        max_players: 8,
         skill_level: 'All Levels',
         is_recurring: false,
         recurrence_end_date: '',
       });
 
+      if (initialSessions && initialSessions.length > 0) {
+        onSessionCreated(initialSessions[0]);
+      }
     } catch (error: any) {
       console.error('Error creating session:', error);
       toast.error('Failed to create session');
@@ -195,7 +167,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
             <Label>Title</Label>
             <Input 
               value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               required 
             />
           </div>
@@ -204,21 +176,22 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
             <Label>Description (Optional)</Label>
             <Input 
               value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
           </div>
           
           <div>
-            <Label>Court</Label>
+            <Label>Courts (Multi-select)</Label>
             <Select 
-              value={formData.court_id}
-              onValueChange={(value) => setFormData({...formData, court_id: value})}
+              multiple
+              value={formData.court_ids}
+              onValueChange={(value) => setFormData({ ...formData, court_ids: value })}
               required
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a court" />
+                <SelectValue placeholder="Select courts" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[100] bg-white">
                 {courts.map((court) => (
                   <SelectItem key={court.id} value={court.id.toString()}>
                     {court.name} ({court.type})
@@ -227,12 +200,12 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="space-y-4">
             <Label>Is this a recurring session?</Label>
             <RadioGroup
               defaultValue="false"
-              onValueChange={(value) => setFormData({...formData, is_recurring: value === 'true'})}
+              onValueChange={(value) => setFormData({ ...formData, is_recurring: value === 'true' })}
               className="flex items-center space-x-4"
             >
               <div className="flex items-center space-x-2">
@@ -252,7 +225,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
               <Input 
                 type="date" 
                 value={formData.date}
-                onChange={(e) => setFormData({...formData, date: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 required 
               />
             </div>
@@ -262,7 +235,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
                 <Input 
                   type="date" 
                   value={formData.recurrence_end_date}
-                  onChange={(e) => setFormData({...formData, recurrence_end_date: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, recurrence_end_date: e.target.value })}
                   required 
                   min={formData.date}
                 />
@@ -276,7 +249,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
               <Input 
                 type="time" 
                 value={formData.start_time}
-                onChange={(e) => setFormData({...formData, start_time: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                 required 
               />
             </div>
@@ -285,7 +258,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
               <Input 
                 type="time" 
                 value={formData.end_time}
-                onChange={(e) => setFormData({...formData, end_time: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                 required 
               />
             </div>
@@ -295,7 +268,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
             <Label>Skill Level</Label>
             <Select 
               value={formData.skill_level}
-              onValueChange={(value) => setFormData({...formData, skill_level: value})}
+              onValueChange={(value) => setFormData({ ...formData, skill_level: value })}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -308,6 +281,17 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          
+          <div>
+            <Label>Max Players</Label>
+            <Input 
+              type="number"
+              readOnly
+              value={max_players}
+              className="bg-gray-100"
+            />
+            <span className="text-xs text-gray-500">Auto-calculated: 4 per court selected</span>
           </div>
           
           <Button type="submit" className="w-full">Create Session{formData.is_recurring ? 's' : ''}</Button>

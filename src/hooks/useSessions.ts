@@ -27,11 +27,11 @@ export function useSessions() {
         throw error;
       }
 
-      // Fetch current registration count for each session
+      // Count all non-cancelled registrations for each session
       const sessionsWithRegistrationCount = await Promise.all(
         (data || []).map(async (session) => {
           try {
-            // Count all active (non-cancelled) registrations
+            // Correct: count ALL active registrations across all users
             const { count, error: countError } = await supabase
               .from('session_registrations')
               .select('*', { count: 'exact', head: true })
@@ -47,7 +47,7 @@ export function useSessions() {
             }
 
             console.log(`Session ${session.id} has ${count} registrations`);
-            
+
             return {
               ...session,
               current_registrations: count || 0
