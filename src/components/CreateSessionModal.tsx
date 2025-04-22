@@ -41,18 +41,18 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
         return;
       }
 
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .single();
+      try {
+        const { data } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
 
-      if (data) {
-        setIsAdmin(true);
-      } else {
+        setIsAdmin(!!data);
+      } catch (error) {
+        console.error('Error checking admin status:', error);
         setIsAdmin(false);
-        if (error) console.error('Error checking admin status:', error);
       }
     };
 
@@ -224,3 +224,4 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
 };
 
 export default CreateSessionModal;
+
