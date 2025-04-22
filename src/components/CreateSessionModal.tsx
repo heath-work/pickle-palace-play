@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -69,46 +70,81 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
     }
 
     try {
+      // Create the base session data but omit the recurring fields to avoid schema cache issues
       const sessionData = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
         court_id: parseInt(formData.court_id),
+        date: formData.date,
+        start_time: formData.start_time,
+        end_time: formData.end_time,
+        max_players: formData.max_players,
+        skill_level: formData.skill_level,
         created_by: user!.id,
         is_active: true,
       };
 
-      if (!formData.is_recurring) {
-        delete sessionData.recurrence_end_date;
-      }
-
-      const { data, error } = await supabase
+      // First create the initial session
+      const { data: initialSession, error: initialError } = await supabase
         .from('sessions')
         .insert(sessionData)
         .select()
         .single();
 
-      if (error) throw error;
+      if (initialError) throw initialError;
 
+      // If session is recurring, update it with recurring fields and create additional sessions
       if (formData.is_recurring && formData.recurrence_end_date) {
+        // Update the session we just created to mark it as recurring
+        const { error: updateError } = await supabase
+          .from('sessions')
+          .update({
+            is_recurring: true,
+            recurrence_end_date: formData.recurrence_end_date
+          })
+          .eq('id', initialSession.id);
+          
+        if (updateError) {
+          console.error('Error updating session with recurring info:', updateError);
+          // Continue anyway as we've already created the first session
+        }
+        
+        // Create additional recurring sessions
         const startDate = new Date(formData.date);
         const endDate = new Date(formData.recurrence_end_date);
         
+        // Skip the first date as we've already created it
+        startDate.setDate(startDate.getDate() + 7);
+        
+        const recurringPromises = [];
         for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 7)) {
-          if (date > startDate) {
-            const recurringSession = {
-              ...sessionData,
-              date: date.toISOString().split('T')[0],
-            };
-            
-            await supabase
+          const recurringSession = {
+            ...sessionData,
+            date: date.toISOString().split('T')[0],
+            is_recurring: true,
+            recurrence_end_date: formData.recurrence_end_date
+          };
+          
+          recurringPromises.push(
+            supabase
               .from('sessions')
-              .insert(recurringSession);
+              .insert(recurringSession)
+          );
+        }
+        
+        // Wait for all recurring sessions to be created
+        if (recurringPromises.length > 0) {
+          const results = await Promise.allSettled(recurringPromises);
+          const failures = results.filter(r => r.status === 'rejected');
+          if (failures.length > 0) {
+            console.warn(`${failures.length} recurring sessions failed to create`);
           }
         }
       }
 
       toast.success('Session(s) created successfully');
       setIsOpen(false);
-      onSessionCreated(data);
+      onSessionCreated(initialSession);
 
       setFormData({
         title: '',
