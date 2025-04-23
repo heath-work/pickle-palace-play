@@ -1,11 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useSessions } from '@/hooks/useSessions';
 import { useAuth } from '@/contexts/AuthContext';
-import { Clock, Users, MapPin, Trash2, Edit } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Clock, Users, MapPin, Trash2, Edit, DollarSign } from 'lucide-react';
+import { format, parseISO, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import CreateSessionModal from './CreateSessionModal';
 import { Court } from '@/types/supabase';
 import { Session } from '@/types/sessions';
@@ -14,6 +15,9 @@ import { SessionParticipantsModal } from "./SessionParticipantsModal";
 import EditSessionModal from './EditSessionModal';
 import { useDeleteSession } from '@/hooks/useDeleteSession';
 import { useEditSession } from '@/hooks/useEditSession';
+
+// Default session price
+const SESSION_BASE_PRICE = 25;
 
 function getAestDateString() {
   // Returns current date in 'YYYY-MM-DD' for AEST
@@ -25,9 +29,32 @@ function getAestDateString() {
   return aestNow.toISOString().split('T')[0];
 }
 
+function getSessionDiscount(profile) {
+  if (!profile || !profile.membership_type) return 0;
+  const type = profile.membership_type;
+  if (type === 'Premium') return 0.15;
+  if (type === 'Elite') return 0.25;
+  if (type === 'Founder') return 0.33; // For display only, actual logic below
+  return 0;
+}
+
+// Helper to get number of registered sessions for this week (for Founder)
+function getFounderFreeSessionsCount(userSessions) {
+  const now = new Date();
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+
+  // Only count sessions that are not cancelled AND in this week
+  return userSessions.filter(us => {
+    if (!us.session || us.status !== 'registered') return false;
+    const sessionDate = parseISO(us.session.date);
+    return isWithinInterval(sessionDate, { start: weekStart, end: weekEnd });
+  }).length;
+}
+
 const SessionList = () => {
   const { sessions, userSessions, registerForSession, cancelSessionRegistration, cancelWaitlist, isLoading, fetchSessions } = useSessions();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [courts, setCourts] = useState<Court[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -132,6 +159,11 @@ const SessionList = () => {
     await deleteSession(sessionId);
   };
 
+  // Compute number of user's registered sessions for this week (for Founder logic)
+  const founderFreeSessionsCount = profile?.membership_type === "Founder"
+    ? getFounderFreeSessionsCount(userSessions)
+    : 0;
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
@@ -163,10 +195,55 @@ const SessionList = () => {
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSessions.map((session) => {
+          {filteredSessions.map((session, idx) => {
             const isFull = (session.current_registrations || 0) >= (session.total_spots || session.max_players);
             const isRegistered = userSessions.some(us => us.session_id === session.id);
             const isWaitlisted = session.waitlisted;
+
+            // Session price logic
+            let priceString = `$${SESSION_BASE_PRICE}`;
+            if (profile) {
+              const type = profile.membership_type;
+              if (type === 'Premium') {
+                priceString = `$${(SESSION_BASE_PRICE * (1 - 0.15)).toFixed(2)} (15% off)`;
+              } else if (type === 'Elite') {
+                priceString = `$${(SESSION_BASE_PRICE * (1 - 0.25)).toFixed(2)} (25% off)`;
+              } else if (type === 'Founder') {
+                // Determine if this session is one of the 3 free ones for the week
+                // For display, show "Free" if not above 3 registered; otherwise, 33% off
+                //
+                // We count up to 3 "registered" userSessions for this week. Mark up to 3 as free,
+                // then all other sessions in the week as discounted.
+                let userRegisteredThisWeek = userSessions
+                  .filter(us => us.status === "registered" && us.session)
+                  .sort((a, b) => {
+                    if (!a.session?.date || !b.session?.date) return 0;
+                    return a.session.date.localeCompare(b.session.date);
+                  });
+                // Mark first 3 as free
+                let thisSessionIsFree = false;
+                if (userRegisteredThisWeek.length > 0) {
+                  // Find all session ids for this week, up to 3
+                  const now = new Date();
+                  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+                  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+                  const weekSess = userRegisteredThisWeek.filter(us => {
+                    if (!us.session?.date) return false;
+                    const date = parseISO(us.session.date);
+                    return isWithinInterval(date, { start: weekStart, end: weekEnd });
+                  });
+                  const freeSessionIds = weekSess.slice(0, 3).map(us => us.session_id);
+                  if (isRegistered && freeSessionIds.includes(session.id)) {
+                    thisSessionIsFree = true;
+                  }
+                }
+                if (isRegistered && thisSessionIsFree) {
+                  priceString = 'Free (Founder bonus)';
+                } else {
+                  priceString = `$${(SESSION_BASE_PRICE * (1 - 0.33)).toFixed(2)} (33% off)`;
+                }
+              }
+            }
             
             return (
               <Card key={session.id} className="hover:shadow-lg transition-shadow">
@@ -224,6 +301,12 @@ const SessionList = () => {
                         <Badge variant="secondary">{session.skill_level} Level</Badge>
                       </div>
                     )}
+                    <div className="flex items-center space-x-2 mt-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-gray-900">
+                        {priceString}
+                      </span>
+                    </div>
                   </div>
                   <div className="mt-4">
                     <Button
@@ -296,3 +379,4 @@ const SessionList = () => {
 };
 
 export default SessionList;
+
