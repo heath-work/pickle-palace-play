@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,11 +15,9 @@ import EditSessionModal from './EditSessionModal';
 import { useDeleteSession } from '@/hooks/useDeleteSession';
 import { useEditSession } from '@/hooks/useEditSession';
 
-// Default session price
 const SESSION_BASE_PRICE = 25;
 
 function getAestDateString() {
-  // Returns current date in 'YYYY-MM-DD' for AEST
   const now = new Date();
   const aestOffset = 10 * 60; // minutes
   const utcOffset = now.getTimezoneOffset();
@@ -38,13 +35,11 @@ function getSessionDiscount(profile) {
   return 0;
 }
 
-// Helper to get number of registered sessions for this week (for Founder)
 function getFounderFreeSessionsCount(userSessions) {
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
 
-  // Only count sessions that are not cancelled AND in this week
   return userSessions.filter(us => {
     if (!us.session || us.status !== 'registered') return false;
     const sessionDate = parseISO(us.session.date);
@@ -72,7 +67,6 @@ const SessionList = () => {
     fetchCourts();
   }, []);
 
-  // Set up realtime subscription to listen for session changes
   useEffect(() => {
     const channel = supabase
       .channel('session-changes')
@@ -135,7 +129,6 @@ const SessionList = () => {
     checkAdminStatus();
   }, [user]);
 
-  // FILTER: Hide sessions in the past (AEST)
   const aestDate = getAestDateString();
   const filteredSessions = (selectedFilter === 'my' 
     ? userSessions.map(us => us.session as Session).filter(Boolean)
@@ -146,7 +139,6 @@ const SessionList = () => {
     fetchSessions();
   };
 
-  // Handler for saving session edits
   const handleEditSave = async (data: Partial<Session>) => {
     if (editModal.session) {
       await editSession(editModal.session.id, data);
@@ -159,7 +151,6 @@ const SessionList = () => {
     await deleteSession(sessionId);
   };
 
-  // Compute number of user's registered sessions for this week (for Founder logic)
   const founderFreeSessionsCount = profile?.membership_type === "Founder"
     ? getFounderFreeSessionsCount(userSessions)
     : 0;
@@ -187,6 +178,14 @@ const SessionList = () => {
         )}
       </div>
 
+      {profile?.membership_type === "Founder" && (
+        <div className="mb-4 text-center">
+          <span className="inline-block px-4 py-2 bg-yellow-100 text-yellow-900 rounded text-sm font-medium">
+            Free sessions used this week: {founderFreeSessionsCount} / 3
+          </span>
+        </div>
+      )}
+
       {isLoading ? (
         <div>Loading sessions...</div>
       ) : filteredSessions.length === 0 ? (
@@ -200,7 +199,6 @@ const SessionList = () => {
             const isRegistered = userSessions.some(us => us.session_id === session.id);
             const isWaitlisted = session.waitlisted;
 
-            // Session price logic
             let priceString = `$${SESSION_BASE_PRICE}`;
             if (profile) {
               const type = profile.membership_type;
@@ -209,21 +207,14 @@ const SessionList = () => {
               } else if (type === 'Elite') {
                 priceString = `$${(SESSION_BASE_PRICE * (1 - 0.25)).toFixed(2)} (25% off)`;
               } else if (type === 'Founder') {
-                // Determine if this session is one of the 3 free ones for the week
-                // For display, show "Free" if not above 3 registered; otherwise, 33% off
-                //
-                // We count up to 3 "registered" userSessions for this week. Mark up to 3 as free,
-                // then all other sessions in the week as discounted.
                 let userRegisteredThisWeek = userSessions
                   .filter(us => us.status === "registered" && us.session)
                   .sort((a, b) => {
                     if (!a.session?.date || !b.session?.date) return 0;
                     return a.session.date.localeCompare(b.session.date);
                   });
-                // Mark first 3 as free
                 let thisSessionIsFree = false;
                 if (userRegisteredThisWeek.length > 0) {
-                  // Find all session ids for this week, up to 3
                   const now = new Date();
                   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
                   const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
@@ -379,4 +370,3 @@ const SessionList = () => {
 };
 
 export default SessionList;
-
