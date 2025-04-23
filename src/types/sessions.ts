@@ -24,6 +24,9 @@ export type Session = {
   };
   current_registrations?: number;
   total_spots?: number;
+  is_full?: boolean;
+  waitlisted?: boolean;
+  waitlist_count?: number;
 };
 
 export type SessionRegistration = {
@@ -34,4 +37,5 @@ export type SessionRegistration = {
   waitlist_position?: number;
   user?: Pick<User, 'email' | 'id'>;
   session?: Session;
+  was_waitlisted?: boolean;
 };

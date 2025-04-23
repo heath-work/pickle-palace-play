@@ -118,6 +118,7 @@ export type Database = {
           status: string
           updated_at: string | null
           user_id: string
+          was_waitlisted: boolean | null
         }
         Insert: {
           created_at?: string | null
@@ -126,6 +127,7 @@ export type Database = {
           status: string
           updated_at?: string | null
           user_id: string
+          was_waitlisted?: boolean | null
         }
         Update: {
           created_at?: string | null
@@ -134,10 +136,43 @@ export type Database = {
           status?: string
           updated_at?: string | null
           user_id?: string
+          was_waitlisted?: boolean | null
         }
         Relationships: [
           {
             foreignKeyName: "session_registrations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_waitlist: {
+        Row: {
+          created_at: string
+          id: string
+          position: number
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          position: number
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          position?: number
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_waitlist_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "sessions"

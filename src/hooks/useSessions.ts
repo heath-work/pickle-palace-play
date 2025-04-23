@@ -12,10 +12,11 @@ export function useSessions() {
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
 
-  const fetchSessions = useFetchSessions(setSessions, setIsLoading);
+  // Pass user to fetchSessions for waitlist state/visibility
+  const fetchSessions = useFetchSessions(setSessions, setIsLoading, user);
   const fetchUserSessions = useFetchUserSessions(setUserSessions, setIsLoading, user);
 
-  const { registerForSession, cancelSessionRegistration } =
+  const { registerForSession, cancelSessionRegistration, cancelWaitlist } =
     useSessionRegistration(user, fetchSessions, fetchUserSessions, setUserSessions);
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export function useSessions() {
     isLoading,
     registerForSession,
     cancelSessionRegistration,
+    cancelWaitlist,
     fetchSessions,
   };
 }
