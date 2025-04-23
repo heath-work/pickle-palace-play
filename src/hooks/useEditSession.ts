@@ -7,10 +7,14 @@ export const useEditSession = (fetchSessions: () => Promise<void>) => {
   // Updates the selected session
   return async (sessionId: string, data: Partial<Session>) => {
     try {
-      const { error } = await supabase
+      console.log('Updating session with ID:', sessionId);
+      console.log('Update data:', data);
+      
+      const { error, data: updatedData } = await supabase
         .from('sessions')
         .update(data)
-        .eq('id', sessionId);
+        .eq('id', sessionId)
+        .select();
 
       if (error) {
         toast.error('Failed to update session');
@@ -18,7 +22,9 @@ export const useEditSession = (fetchSessions: () => Promise<void>) => {
         return;
       }
 
+      console.log('Session updated successfully:', updatedData);
       toast.success('Session updated');
+      
       // Ensure we refresh the sessions list after updating
       await fetchSessions();
     } catch (err) {

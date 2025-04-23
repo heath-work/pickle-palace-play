@@ -11,32 +11,34 @@ export const useFetchSessions = (setSessions: (s: Session[]) => void, setIsLoadi
     setIsLoading(true);
     try {
       // Get current AEST date YYYY-MM-DD
-      const now = new Date();
-      const aestOffset = 10 * 60;
-      const utcOffset = now.getTimezoneOffset();
-      const totalOffsetMinutes = utcOffset + aestOffset;
-      const aestDate = new Date(now.getTime() + totalOffsetMinutes * 60000)
-        .toISOString()
-        .split('T')[0];
+      const aestDate = getAestDate();
+      console.log('Fetching sessions for date (AEST):', aestDate);
 
       // Archive past sessions
-      await supabase
+      const { error: archiveError } = await supabase
         .from('sessions')
         .update({ is_active: false })
         .lt('date', aestDate)
         .eq('is_active', true);
+        
+      if (archiveError) {
+        console.error('Error archiving past sessions:', archiveError);
+      }
 
       // Fetch active sessions (not in the past)
       const { data, error } = await supabase
         .from('sessions')
         .select('*, courts(name, type)')
         .eq('is_active', true)
-        .gte('date', aestDate) // <-- Only fetch present/future
+        .gte('date', aestDate)
         .order('date', { ascending: true });
 
       if (error) {
+        console.error('Error fetching sessions:', error);
         throw error;
       }
+
+      console.log('Fetched sessions:', data ? data.length : 0);
 
       // Calculate total_spots and count current registrations using getSessionParticipants
       const sessionsWithRegistrationCount = await Promise.all(
@@ -50,7 +52,8 @@ export const useFetchSessions = (setSessions: (s: Session[]) => void, setIsLoadi
               current_registrations: registeredCount,
               total_spots: totalSpots,
             } as Session;
-          } catch {
+          } catch (err) {
+            console.error('Error getting participants for session', session.id, err);
             return {
               ...session,
               current_registrations: 0,
@@ -62,6 +65,7 @@ export const useFetchSessions = (setSessions: (s: Session[]) => void, setIsLoadi
 
       setSessions(sessionsWithRegistrationCount);
     } catch (error) {
+      console.error('Failed to load sessions:', error);
       toast.error('Failed to load sessions');
     } finally {
       setIsLoading(false);
