@@ -1,91 +1,32 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useSessions } from '@/hooks/useSessions';
-import { useAuth } from '@/contexts/AuthContext';
-import { Clock, Users, MapPin, Trash2, Edit, DollarSign } from 'lucide-react';
-import { format, parseISO, startOfWeek, endOfWeek, isWithinInterval, getISOWeek, getYear } from 'date-fns';
 import CreateSessionModal from './CreateSessionModal';
 import { Court } from '@/types/supabase';
 import { Session } from '@/types/sessions';
 import { supabase } from '@/integrations/supabase/client';
+import { useSessions } from '@/hooks/useSessions';
+import { useAuth } from '@/contexts/AuthContext';
 import { SessionParticipantsModal } from "./SessionParticipantsModal";
 import EditSessionModal from './EditSessionModal';
 import { useDeleteSession } from '@/hooks/useDeleteSession';
 import { useEditSession } from '@/hooks/useEditSession';
 
-const SESSION_BASE_PRICE = 25;
+import {
+  groupSessionsByWeek,
+  getFounderFreeSessionCounts,
+  WeeklyGroup
+} from './sessionListUtils';
+
+import { SessionWeeklyGroup } from './SessionWeeklyGroup';
 
 function getAestDateString() {
   const now = new Date();
-  const aestOffset = 10 * 60; // minutes
+  const aestOffset = 10 * 60;
   const utcOffset = now.getTimezoneOffset();
   const totalOffsetMinutes = utcOffset + aestOffset;
   const aestNow = new Date(now.getTime() + totalOffsetMinutes * 60000);
   return aestNow.toISOString().split('T')[0];
-}
-
-function getSessionDiscount(profile) {
-  if (!profile || !profile.membership_type) return 0;
-  const type = profile.membership_type;
-  if (type === 'Premium') return 0.15;
-  if (type === 'Elite') return 0.25;
-  if (type === 'Founder') return 0.33; // For display only, actual logic below
-  return 0;
-}
-
-function getSessionWeekKey(session) {
-  const sessionDate = parseISO(session.date);
-  return `${getISOWeek(sessionDate)}-${getYear(sessionDate)}`;
-}
-
-function getWeekLabel(session) {
-  const sessionDate = parseISO(session.date);
-  const weekStart = startOfWeek(sessionDate, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(sessionDate, { weekStartsOn: 1 });
-  return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
-}
-
-interface WeeklyGroup {
-  label: string;
-  sessions: Session[];
-}
-
-function groupSessionsByWeek(sessions: Session[]): Record<string, WeeklyGroup> {
-  return sessions.reduce((acc: Record<string, WeeklyGroup>, session) => {
-    const key = getSessionWeekKey(session);
-    if (!acc[key]) {
-      acc[key] = {
-        label: getWeekLabel(session),
-        sessions: [],
-      };
-    }
-    acc[key].sessions.push(session);
-    return acc;
-  }, {});
-}
-
-function getFounderFreeSessionCounts(userSessions) {
-  const freeCountByWeek: Record<string, any[]> = {};
-  userSessions.forEach(us => {
-    if (us.status === "registered" && us.session?.date) {
-      const key = getSessionWeekKey(us.session);
-      if (!freeCountByWeek[key]) freeCountByWeek[key] = [];
-      freeCountByWeek[key].push(us);
-    }
-  });
-  Object.keys(freeCountByWeek).forEach(key => {
-    freeCountByWeek[key] = freeCountByWeek[key]
-      .sort((a, b) => {
-        if (!a.session?.date || !b.session?.date) return 0;
-        return a.session.date.localeCompare(b.session.date);
-      })
-      .slice(0, 4);
-  });
-  return Object.fromEntries(
-    Object.entries(freeCountByWeek).map(([k, arr]) => [k, arr.length])
-  );
 }
 
 const SessionList = () => {
@@ -119,7 +60,6 @@ const SessionList = () => {
           table: 'sessions'
         },
         (_) => {
-          console.log('Session table changed, refreshing sessions...');
           fetchSessions();
         }
       )
@@ -161,7 +101,6 @@ const SessionList = () => {
         .eq('user_id', user.id)
         .eq('role', 'admin')
         .maybeSingle();
-      console.log('Admin check result:', data);
       setIsAdmin(!!data);
     };
     checkAdminStatus();
@@ -179,19 +118,16 @@ const SessionList = () => {
       ? getFounderFreeSessionCounts(userSessions)
       : {};
 
-  const handleSessionCreated = (newSession: Session) => {
+  const handleSessionCreated = (_newSession: Session) => {
     fetchSessions();
   };
-
   const handleEditSave = async (data: Partial<Session>) => {
     if (editModal.session) {
       await editSession(editModal.session.id, data);
       setEditModal({ open: false, session: null });
     }
   };
-
   const handleDeleteSession = async (sessionId: string) => {
-    console.log('Deleting session:', sessionId);
     await deleteSession(sessionId);
   };
 
@@ -231,173 +167,29 @@ const SessionList = () => {
             const bDate = parseISO(bVal.sessions[0].date);
             return aDate.getTime() - bDate.getTime();
           })
-          .map(([weekKey, weekGroup]) => (
-            <div key={weekKey} className="mb-8">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold">{weekGroup.label}</h3>
-                {profile?.membership_type === "Founder" && (
-                  <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-900 rounded text-xs font-medium">
-                    Free sessions used: {founderWeekCounts[weekKey] || 0} / 4
-                  </span>
-                )}
-              </div>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {weekGroup.sessions.map((session, idx) => {
-                  const isFull = (session.current_registrations || 0) >= (session.total_spots || session.max_players);
-                  const isRegistered = userSessions.some(us => us.session_id === session.id);
-                  const isWaitlisted = session.waitlisted;
-
-                  let priceString = `$${SESSION_BASE_PRICE}`;
-                  if (profile) {
-                    const type = profile.membership_type;
-                    if (type === 'Premium') {
-                      priceString = `$${(SESSION_BASE_PRICE * (1 - 0.15)).toFixed(2)} (15% off)`;
-                    } else if (type === 'Elite') {
-                      priceString = `$${(SESSION_BASE_PRICE * (1 - 0.25)).toFixed(2)} (25% off)`;
-                    } else if (type === 'Founder') {
-                      let userRegisteredThisWeek = userSessions
-                        .filter(us => us.status === "registered" && us.session)
-                        .sort((a, b) => {
-                          if (!a.session?.date || !b.session?.date) return 0;
-                          return a.session.date.localeCompare(b.session.date);
-                        });
-                      let thisSessionIsFree = false;
-                      if (userRegisteredThisWeek.length > 0) {
-                        const sessionDate = parseISO(session.date);
-                        const weekStart = startOfWeek(sessionDate, { weekStartsOn: 1 });
-                        const weekEnd = endOfWeek(sessionDate, { weekStartsOn: 1 });
-                        const weekSess = userRegisteredThisWeek.filter(us => {
-                          if (!us.session?.date) return false;
-                          const date = parseISO(us.session.date);
-                          return isWithinInterval(date, { start: weekStart, end: weekEnd });
-                        });
-                        const freeSessionIds = weekSess.slice(0, 4).map(us => us.session_id);
-                        if (isRegistered && freeSessionIds.includes(session.id)) {
-                          thisSessionIsFree = true;
-                        }
-                      }
-                      if (isRegistered && thisSessionIsFree) {
-                        priceString = 'Free (Founder bonus)';
-                      } else {
-                        priceString = `$${(SESSION_BASE_PRICE * (1 - 0.33)).toFixed(2)} (33% off)`;
-                      }
-                    }
-                  }
-
-                  return (
-                    <Card key={session.id} className="hover:shadow-lg transition-shadow">
-                      <CardHeader className="pb-2 flex flex-row items-start justify-between">
-                        <div>
-                          <CardTitle>{session.title}</CardTitle>
-                          <div className="text-sm text-muted-foreground">
-                            {session.courts?.name} - {session.courts?.type} Court
-                          </div>
-                        </div>
-                        {isAdmin && (
-                          <div className="flex flex-row gap-2 items-center">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setEditModal({ open: true, session })}
-                              aria-label="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteSession(session.id)}
-                              aria-label="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span>
-                              {format(parseISO(session.date), 'PPP')} at {session.start_time}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                            <span>
-                              {(session.current_registrations || 0).toLocaleString()} / {(session.total_spots || session.max_players).toLocaleString()} registered
-                              {isFull && <span className="ml-2 text-red-500 font-medium">(Full)</span>}
-                              {session.waitlist_count > 0 && (
-                                <span className="ml-2 text-amber-600 font-medium">
-                                  ({session.waitlist_count} waitlisted)
-                                </span>
-                              )}
-                            </span>
-                          </div>
-                          {session.skill_level && (
-                            <div className="flex items-center space-x-2">
-                              <MapPin className="h-4 w-4 text-muted-foreground" />
-                              <Badge variant="secondary">{session.skill_level} Level</Badge>
-                            </div>
-                          )}
-                          <div className="flex items-center space-x-2 mt-2">
-                            <DollarSign className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium text-gray-900">
-                              {priceString}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="mt-4">
-                          <Button
-                            variant="secondary"
-                            className="w-full mb-2"
-                            onClick={() => setModalSessionId(session.id)}
-                          >
-                            View Participants
-                          </Button>
-                        </div>
-                        {user && (
-                          <div className="mt-2">
-                            {isRegistered ? (
-                              <Button
-                                variant="destructive"
-                                onClick={() => {
-                                  const registration = userSessions.find(us => us.session_id === session.id);
-                                  if (registration) {
-                                    cancelSessionRegistration(registration.id, session.id);
-                                  }
-                                }}
-                                className="w-full"
-                              >
-                                Cancel Registration
-                              </Button>
-                            ) : isWaitlisted ? (
-                              <Button
-                                variant="outline"
-                                onClick={() => cancelWaitlist(session.id)}
-                                className="w-full"
-                              >
-                                Leave Waitlist
-                              </Button>
-                            ) : (
-                              <Button
-                                onClick={() => registerForSession(session.id)}
-                                className="w-full"
-                                variant={isFull ? "outline" : "default"}
-                              >
-                                {isFull ? "Join Waitlist" : "Register"}
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
+          .map(([weekKey, group]) => (
+            <SessionWeeklyGroup
+              key={weekKey}
+              weekKey={weekKey}
+              weekLabel={group.label}
+              sessions={group.sessions}
+              profile={profile}
+              founderWeekCounts={founderWeekCounts}
+              isFounder={profile?.membership_type === "Founder"}
+              courts={courts}
+              userSessions={userSessions}
+              user={user}
+              isAdmin={isAdmin}
+              onEdit={(session) => setEditModal({ open: true, session })}
+              onDelete={handleDeleteSession}
+              onViewParticipants={(id) => setModalSessionId(id)}
+              onRegister={registerForSession}
+              onCancelRegistration={cancelSessionRegistration}
+              onCancelWaitlist={cancelWaitlist}
+            />
           ))
       )}
+
       {modalSessionId && (
         <SessionParticipantsModal
           sessionId={modalSessionId}
