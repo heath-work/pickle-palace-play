@@ -5,19 +5,21 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
+// Props for the modal
 interface SessionParticipantsModalProps {
   sessionId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+// Participant type reflecting joined profile fields
 type Participant = {
   id: string;
   user_id: string;
   status: string;
-  user: {
-    email: string | null;
+  profiles: {
     id: string;
+    username: string | null; // using username as email
   } | null;
 };
 
@@ -41,46 +43,19 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
 
     const fetchParticipants = async () => {
       try {
-        // First fetch all session_registrations
-        const { data: registrations, error: regError } = await supabase
+        // Fetch session_registrations and join profiles table using supabase select relation
+        const { data, error } = await supabase
           .from("session_registrations")
-          .select("id, user_id, status")
+          .select("id, user_id, status, profiles(id, username)")
           .eq("session_id", sessionId)
           .not("status", "eq", "cancelled");
 
-        if (regError) {
-          console.error("Error fetching registrations:", regError);
+        if (error) {
+          console.error("Error fetching session participants:", error);
           setParticipants([]);
-          setLoading(false);
-          return;
+        } else {
+          setParticipants(data ?? []);
         }
-
-        // For each registration, get the user profile information
-        const participantsWithProfiles = await Promise.all(
-          (registrations || []).map(async (reg) => {
-            // Get user profile from the profiles table
-            const { data: profile, error: profileError } = await supabase
-              .from("profiles")
-              .select("id, email:username") // Using username as email for now
-              .eq("id", reg.user_id)
-              .maybeSingle();
-
-            if (profileError) {
-              console.error("Error fetching profile:", profileError);
-              return {
-                ...reg,
-                user: { id: reg.user_id, email: "Unknown user" }
-              };
-            }
-
-            return {
-              ...reg,
-              user: profile ? { id: profile.id, email: profile.email } : { id: reg.user_id, email: "Unknown user" }
-            };
-          })
-        );
-
-        setParticipants(participantsWithProfiles);
       } catch (error) {
         console.error("Error in fetchParticipants:", error);
         setParticipants([]);
@@ -111,8 +86,8 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
                 {participants.map((p) => (
                   <li key={p.id} className="py-2 flex items-center justify-between">
                     <div>
-                      {p.user?.email || p.user_id}
-                      <span className="ml-2 text-xs text-gray-400">({p.user?.id?.slice(0, 8)}…)</span>
+                      {p.profiles?.username || p.user_id}
+                      <span className="ml-2 text-xs text-gray-400">({p.profiles?.id?.slice(0, 8) ?? p.user_id.slice(0,8)}…)</span>
                     </div>
                     <Badge className={statusColors[p.status] + " capitalize"}>
                       {p.status}

@@ -137,7 +137,7 @@ const SessionList = () => {
                     </div>
                   )}
                 </div>
-                {isAdmin && (
+                {user && (
                   <div className="mt-4">
                     <Button
                       variant="secondary"
