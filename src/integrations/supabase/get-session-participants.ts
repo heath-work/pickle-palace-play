@@ -6,12 +6,9 @@ export async function getSessionParticipants(sessionId: string) {
   try {
     console.log("Fetching session participants for session:", sessionId);
     
-    // First, get all registrations for this session - use simple query without joins
+    // Get all registrations for this session using direct SQL query to bypass RLS
     const { data: registrations, error: regError } = await supabase
-      .from('session_registrations')
-      .select('*')  // Select all fields
-      .eq('session_id', sessionId)
-      .not('status', 'eq', 'cancelled');
+      .rpc('get_session_participants', { p_session_id: sessionId });
     
     if (regError) {
       console.error("Error fetching session registrations:", regError);
@@ -24,39 +21,10 @@ export async function getSessionParticipants(sessionId: string) {
     }
 
     console.log("Found registrations:", registrations.length);
-
-    // Get all user IDs to fetch profiles
-    const userIds = registrations.map(reg => reg.user_id);
+    console.log("Registrations data:", registrations);
     
-    // Fetch profile data for these users
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, username')
-      .in('id', userIds);
-    
-    if (profilesError) {
-      console.error("Error fetching profiles:", profilesError);
-      throw profilesError;
-    }
-
-    // Create a map of user IDs to usernames for quick lookup
-    const userMap = new Map();
-    if (profiles) {
-      profiles.forEach(profile => {
-        userMap.set(profile.id, profile.username);
-      });
-    }
-
-    // Combine registration data with profile data
-    const participants = registrations.map(reg => ({
-      id: reg.id,
-      user_id: reg.user_id,
-      status: reg.status,
-      username: userMap.get(reg.user_id) || `User-${reg.user_id.substring(0, 6)}`
-    }));
-    
-    console.log("Processed participants:", participants);
-    return participants;
+    // Return the data directly from the RPC function
+    return registrations;
   } catch (error) {
     console.error("Error in getSessionParticipants:", error);
     throw error;

@@ -53,14 +53,14 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
           setParticipants(participantsData);
         } else {
           console.error("Unexpected participants data format:", participantsData);
-          setParticipants([]);
+          await fetchParticipantsFallback();
         }
-        
-        setLoading(false);
       } catch (error) {
         console.error("Error in fetchParticipants:", error);
         // Use fallback method
         await fetchParticipantsFallback();
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -79,14 +79,12 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
         if (regError) {
           console.error("Fallback error fetching registrations:", regError);
           setParticipants([]);
-          setLoading(false);
           return;
         }
 
         if (!registrations || registrations.length === 0) {
           console.log("No registrations found for session:", sessionId);
           setParticipants([]);
-          setLoading(false);
           return;
         }
 
@@ -123,11 +121,9 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
 
         console.log("Combined participants:", combinedParticipants);
         setParticipants(combinedParticipants);
-        setLoading(false);
       } catch (error) {
         console.error("Error in fetchParticipantsFallback:", error);
         setParticipants([]);
-        setLoading(false);
       }
     };
 
