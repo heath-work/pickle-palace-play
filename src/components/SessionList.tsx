@@ -46,6 +46,29 @@ const SessionList = () => {
     fetchCourts();
   }, []);
 
+  // Set up realtime subscription to listen for session changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('session-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sessions'
+        },
+        (_) => {
+          console.log('Session table changed, refreshing sessions...');
+          fetchSessions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchSessions]);
+
   useEffect(() => {
     const channel = supabase
       .channel('session-registrations-changes')
@@ -79,6 +102,8 @@ const SessionList = () => {
         .eq('user_id', user.id)
         .eq('role', 'admin')
         .maybeSingle();
+      
+      console.log('Admin check result:', data);
       setIsAdmin(!!data);
     };
     checkAdminStatus();
@@ -101,6 +126,11 @@ const SessionList = () => {
       await editSession(editModal.session.id, data);
       setEditModal({ open: false, session: null });
     }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    console.log('Deleting session:', sessionId);
+    await deleteSession(sessionId);
   };
 
   return (
@@ -156,7 +186,7 @@ const SessionList = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => deleteSession(session.id)}
+                      onClick={() => handleDeleteSession(session.id)}
                       aria-label="Delete"
                     >
                       <Trash2 className="w-4 h-4" />

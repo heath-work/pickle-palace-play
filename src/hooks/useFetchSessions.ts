@@ -38,7 +38,7 @@ export const useFetchSessions = (setSessions: (s: Session[]) => void, setIsLoadi
         throw error;
       }
 
-      console.log('Fetched sessions:', data ? data.length : 0);
+      console.log('Fetched sessions raw data:', data);
 
       // Calculate total_spots and count current registrations using getSessionParticipants
       const sessionsWithRegistrationCount = await Promise.all(
@@ -63,6 +63,7 @@ export const useFetchSessions = (setSessions: (s: Session[]) => void, setIsLoadi
         })
       );
 
+      console.log('Processed sessions with registration counts:', sessionsWithRegistrationCount);
       setSessions(sessionsWithRegistrationCount);
     } catch (error) {
       console.error('Failed to load sessions:', error);

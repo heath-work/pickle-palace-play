@@ -8,6 +8,20 @@ export const useDeleteSession = (fetchSessions: () => Promise<void>) => {
     try {
       console.log('Deleting session with ID:', sessionId);
       
+      // First attempt to check if the session exists
+      const { data: checkData, error: checkError } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('id', sessionId)
+        .single();
+        
+      if (checkError) {
+        console.error('Session check error:', checkError);
+        toast.error('Unable to find session');
+        return;
+      }
+      
+      // Perform the delete operation
       const { error, data } = await supabase
         .from('sessions')
         .delete()
@@ -23,8 +37,10 @@ export const useDeleteSession = (fetchSessions: () => Promise<void>) => {
       console.log('Session deleted successfully:', data);
       toast.success('Session deleted');
       
-      // Ensure we refresh the sessions list after deletion
-      await fetchSessions();
+      // Force refresh sessions list
+      setTimeout(() => {
+        fetchSessions();
+      }, 500);
     } catch (err) {
       console.error('Delete session exception:', err);
       toast.error('An unexpected error occurred while deleting the session');
