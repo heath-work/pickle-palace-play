@@ -4,8 +4,9 @@ import { supabase } from "./client";
 // Define the return type for our RPC function
 export type SessionParticipant = {
   id: string;
-  name: string;
-  email: string;
+  user_id: string;
+  status: string;
+  username: string | null;
 };
 
 // This function is a convenient wrapper around fetching session participants
@@ -13,11 +14,12 @@ export async function getSessionParticipants(sessionId: string) {
   try {
     console.log("Fetching session participants for session:", sessionId);
 
-    // Call the RPC with correct type params and argument shape
-    const { data, error } = await supabase
-      .rpc<SessionParticipant[], { session_id: string }>("get_session_participants", {
-        session_id: sessionId,
-      });
+    // Use a more generic approach instead of the strongly typed RPC
+    // that's causing TypeScript constraint issues
+    const { data, error } = await supabase.rpc(
+      'get_session_participants', 
+      { session_id: sessionId }
+    );
 
     if (error) {
       console.error("Error fetching session participants:", error);
@@ -32,7 +34,8 @@ export async function getSessionParticipants(sessionId: string) {
     console.log("Found participants:", data.length);
     console.log("Participants data:", data);
 
-    return data;
+    // Cast the data to our expected type
+    return data as SessionParticipant[];
   } catch (error) {
     console.error("Error in getSessionParticipants:", error);
     throw error;
