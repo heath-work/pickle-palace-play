@@ -55,7 +55,7 @@ const Blog = () => {
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-pickleball-blue">Pickle Palace Blog</h1>
+          <h1 className="text-4xl font-bold text-pickleball-blue">Propaganda</h1>
           <p className="mt-4 text-xl text-gray-600">
             Latest news, tips, and stories from our pickleball community
           </p>
