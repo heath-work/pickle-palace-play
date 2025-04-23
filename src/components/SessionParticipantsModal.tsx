@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +56,7 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
       }
     };
 
+    // Fallback method remains the same for robustness
     const fetchParticipantsFallback = async () => {
       try {
         console.log("Using fallback method to fetch participants");

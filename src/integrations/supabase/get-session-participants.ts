@@ -1,37 +1,59 @@
 
 import { supabase } from "./client";
 
-// This function is a convenient wrapper around the get_session_participants RPC
+// This function is a convenient wrapper around fetching session participants
 export async function getSessionParticipants(sessionId: string) {
   try {
-    console.log("Calling get_session_participants RPC for session:", sessionId);
+    console.log("Fetching session participants for session:", sessionId);
     
-    // Using a raw query to call the RPC function since TypeScript doesn't know about our custom function
-    const { data, error } = await supabase
+    // First, get all registrations for this session
+    const { data: registrations, error: regError } = await supabase
       .from('session_registrations')
-      .select(`
-        id,
-        user_id,
-        status,
-        profiles:user_id(username)
-      `)
+      .select('id, user_id, status')
       .eq('session_id', sessionId)
       .not('status', 'eq', 'cancelled');
     
-    if (error) {
-      console.error("Error fetching session participants:", error);
-      throw error;
+    if (regError) {
+      console.error("Error fetching session registrations:", regError);
+      throw regError;
     }
+
+    if (!registrations || registrations.length === 0) {
+      console.log("No registrations found for session:", sessionId);
+      return [];
+    }
+
+    // Get all user IDs to fetch profiles
+    const userIds = registrations.map(reg => reg.user_id);
     
-    // Transform the data to match the Participant type
-    const participants = data?.map(item => ({
-      id: item.id,
-      user_id: item.user_id,
-      status: item.status,
-      username: item.profiles?.username || null
-    })) || [];
+    // Fetch profile data for these users
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, username')
+      .in('id', userIds);
     
-    console.log("Transformed participants:", participants);
+    if (profilesError) {
+      console.error("Error fetching profiles:", profilesError);
+      throw profilesError;
+    }
+
+    // Create a map of user IDs to usernames for quick lookup
+    const userMap = new Map();
+    if (profiles) {
+      profiles.forEach(profile => {
+        userMap.set(profile.id, profile.username);
+      });
+    }
+
+    // Combine registration data with profile data
+    const participants = registrations.map(reg => ({
+      id: reg.id,
+      user_id: reg.user_id,
+      status: reg.status,
+      username: userMap.get(reg.user_id) || null
+    }));
+    
+    console.log("Processed participants:", participants);
     return participants;
   } catch (error) {
     console.error("Error in getSessionParticipants:", error);
