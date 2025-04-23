@@ -38,6 +38,13 @@ export const SessionCard: React.FC<SessionCardProps> = ({
   onCancelRegistration,
   onCancelWaitlist
 }) => {
+  console.log('Session Card Data:', {
+    session,
+    currentRegistrations: session.current_registrations,
+    totalSpots: session.total_spots,
+    maxPlayers: session.max_players
+  });
+
   const isFull = (session.current_registrations || 0) >= (session.total_spots || session.max_players);
   const isRegistered = userSessions.some(us => us.session_id === session.id);
   const isWaitlisted = session.waitlisted;
@@ -186,3 +193,4 @@ export const SessionCard: React.FC<SessionCardProps> = ({
     </Card>
   );
 };
+
