@@ -1,6 +1,5 @@
 
 import { promises as fs } from 'fs';
-import path from 'path';
 import matter from 'front-matter';
 import { marked } from 'marked';
 import { BlogPost } from '@/types/blog';
@@ -58,8 +57,9 @@ export function importAllPosts() {
   const context = import.meta.glob('/src/content/posts/*.md', { eager: true, as: 'raw' });
   
   const posts = Object.entries(context).map(([filePath, content]) => {
-    const fileName = path.basename(filePath);
-    const slug = fileName.replace('.md', '');
+    // Extract the filename without the extension using string manipulation instead of path.basename
+    const fileNameWithExtension = filePath.split('/').pop() || '';
+    const slug = fileNameWithExtension.replace('.md', '');
     return parseMarkdownPost(slug, content as string);
   });
 
