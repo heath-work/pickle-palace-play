@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,12 +10,15 @@ import CreateSessionModal from './CreateSessionModal';
 import { Court } from '@/types/supabase';
 import { Session } from '@/types/sessions';
 import { supabase } from '@/integrations/supabase/client';
+import { SessionParticipantsModal } from "./SessionParticipantsModal";
 
 const SessionList = () => {
   const { sessions, userSessions, registerForSession, cancelSessionRegistration, isLoading, fetchSessions } = useSessions();
   const { user } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [courts, setCourts] = useState<Court[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [modalSessionId, setModalSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCourts = async () => {
@@ -28,7 +30,6 @@ const SessionList = () => {
   }, []);
 
   useEffect(() => {
-    // Set up realtime subscription to session_registrations table
     const channel = supabase
       .channel('session-registrations-changes')
       .on(
@@ -39,7 +40,6 @@ const SessionList = () => {
           table: 'session_registrations'
         },
         (_) => {
-          // Any change to registrations should trigger a refresh of sessions
           fetchSessions();
         }
       )
@@ -49,6 +49,24 @@ const SessionList = () => {
       supabase.removeChannel(channel);
     };
   }, [fetchSessions]);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+      setIsAdmin(!!data);
+    };
+
+    checkAdminStatus();
+  }, [user]);
 
   const filteredSessions = selectedFilter === 'my' 
     ? userSessions.map(us => us.session as Session).filter(Boolean)
@@ -119,21 +137,29 @@ const SessionList = () => {
                     </div>
                   )}
                 </div>
-
-                {user && (
+                {isAdmin && (
                   <div className="mt-4">
+                    <Button
+                      variant="secondary"
+                      className="w-full mb-2"
+                      onClick={() => setModalSessionId(session.id)}
+                    >View Participants</Button>
+                  </div>
+                )}
+                {user && (
+                  <div className="mt-2">
                     {!userSessions.some(us => us.session_id === session.id) ? (
-                      <Button 
+                      <Button
                         onClick={() => registerForSession(session.id)}
                         disabled={session.current_registrations >= session.max_players}
                         className="w-full"
                       >
-                        {session.current_registrations >= session.max_players 
-                          ? 'Waitlist' 
+                        {session.current_registrations >= session.max_players
+                          ? 'Waitlist'
                           : 'Register'}
                       </Button>
                     ) : (
-                      <Button 
+                      <Button
                         variant="destructive"
                         onClick={() => {
                           const registration = userSessions.find(us => us.session_id === session.id);
@@ -152,6 +178,13 @@ const SessionList = () => {
             </Card>
           ))}
         </div>
+      )}
+      {modalSessionId && (
+        <SessionParticipantsModal
+          sessionId={modalSessionId}
+          open={!!modalSessionId}
+          onOpenChange={(open) => setModalSessionId(open ? modalSessionId : null)}
+        />
       )}
     </div>
   );
