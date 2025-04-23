@@ -11,7 +11,6 @@ import { SessionParticipantsModal } from "./SessionParticipantsModal";
 import EditSessionModal from './EditSessionModal';
 import { useDeleteSession } from '@/hooks/useDeleteSession';
 import { useEditSession } from '@/hooks/useEditSession';
-import { parseISO } from 'date-fns';
 
 import {
   groupSessionsByWeek,

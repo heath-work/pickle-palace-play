@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -37,14 +38,6 @@ export const SessionCard: React.FC<SessionCardProps> = ({
   onCancelRegistration,
   onCancelWaitlist
 }) => {
-  console.log('Session Card Debug:', {
-    sessionId: session.id,
-    currentRegistrations: session.current_registrations,
-    totalSpots: session.total_spots,
-    maxPlayers: session.max_players,
-    registrationsType: typeof session.current_registrations
-  });
-
   const isFull = (session.current_registrations || 0) >= (session.total_spots || session.max_players);
   const isRegistered = userSessions.some(us => us.session_id === session.id);
   const isWaitlisted = session.waitlisted;
@@ -85,7 +78,6 @@ export const SessionCard: React.FC<SessionCardProps> = ({
       }
     }
   }
-
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader className="pb-2 flex flex-row items-start justify-between">
@@ -127,7 +119,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
           <div className="flex items-center space-x-2">
             <Users className="h-4 w-4 text-muted-foreground" />
             <span>
-              {(session.current_registrations ?? 0)} / {(session.total_spots || session.max_players)} registered
+              {(session.current_registrations || 0).toLocaleString()} / {(session.total_spots || session.max_players).toLocaleString()} registered
               {isFull && <span className="ml-2 text-red-500 font-medium">(Full)</span>}
               {session.waitlist_count && session.waitlist_count > 0 && (
                 <span className="ml-2 text-amber-600 font-medium">

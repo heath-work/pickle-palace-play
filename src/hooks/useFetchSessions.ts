@@ -106,4 +106,3 @@ export const useFetchSessions = (
       setIsLoading(false);
     }
   }, [setSessions, setIsLoading, user]);
-
