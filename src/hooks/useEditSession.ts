@@ -11,11 +11,10 @@ export const useEditSession = (fetchSessions: () => Promise<void>) => {
       console.log('Update data:', data);
       
       // Perform the update operation
-      const { error, data: updatedData } = await supabase
+      const { error } = await supabase
         .from('sessions')
         .update(data)
-        .eq('id', sessionId)
-        .select();
+        .eq('id', sessionId);
 
       if (error) {
         toast.error('Failed to update session');
@@ -23,11 +22,11 @@ export const useEditSession = (fetchSessions: () => Promise<void>) => {
         return;
       }
 
-      console.log('Session updated successfully:', updatedData);
+      console.log('Session updated successfully');
       toast.success('Session updated');
       
       // Refresh sessions list immediately
-      fetchSessions();
+      await fetchSessions();
     } catch (err) {
       console.error('Edit session exception:', err);
       toast.error('An unexpected error occurred while updating the session');

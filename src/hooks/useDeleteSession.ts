@@ -9,11 +9,10 @@ export const useDeleteSession = (fetchSessions: () => Promise<void>) => {
       console.log('Deleting session with ID:', sessionId);
       
       // Perform the delete operation
-      const { error, data } = await supabase
+      const { error } = await supabase
         .from('sessions')
         .delete()
-        .eq('id', sessionId)
-        .select();
+        .eq('id', sessionId);
 
       if (error) {
         toast.error('Failed to delete session');
@@ -21,11 +20,11 @@ export const useDeleteSession = (fetchSessions: () => Promise<void>) => {
         return;
       }
 
-      console.log('Session deleted successfully:', data);
+      console.log('Session deleted successfully');
       toast.success('Session deleted');
       
       // Refresh sessions list immediately
-      fetchSessions();
+      await fetchSessions();
     } catch (err) {
       console.error('Delete session exception:', err);
       toast.error('An unexpected error occurred while deleting the session');
