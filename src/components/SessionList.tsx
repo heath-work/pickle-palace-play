@@ -181,7 +181,7 @@ const SessionList = () => {
       {profile?.membership_type === "Founder" && (
         <div className="mb-4 text-center">
           <span className="inline-block px-4 py-2 bg-yellow-100 text-yellow-900 rounded text-sm font-medium">
-            Free sessions used this week: {founderFreeSessionsCount} / 3
+            Free sessions used this week: {founderFreeSessionsCount} / 4
           </span>
         </div>
       )}
@@ -223,7 +223,7 @@ const SessionList = () => {
                     const date = parseISO(us.session.date);
                     return isWithinInterval(date, { start: weekStart, end: weekEnd });
                   });
-                  const freeSessionIds = weekSess.slice(0, 3).map(us => us.session_id);
+                  const freeSessionIds = weekSess.slice(0, 4).map(us => us.session_id);
                   if (isRegistered && freeSessionIds.includes(session.id)) {
                     thisSessionIsFree = true;
                   }
