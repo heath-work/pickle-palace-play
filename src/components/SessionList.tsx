@@ -47,8 +47,13 @@ function getWeekLabel(session) {
   return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
 }
 
-function groupSessionsByWeek(sessions) {
-  return sessions.reduce((acc, session) => {
+interface WeeklyGroup {
+  label: string;
+  sessions: Session[];
+}
+
+function groupSessionsByWeek(sessions: Session[]): Record<string, WeeklyGroup> {
+  return sessions.reduce((acc: Record<string, WeeklyGroup>, session) => {
     const key = getSessionWeekKey(session);
     if (!acc[key]) {
       acc[key] = {
@@ -62,7 +67,7 @@ function groupSessionsByWeek(sessions) {
 }
 
 function getFounderFreeSessionCounts(userSessions) {
-  const freeCountByWeek = {};
+  const freeCountByWeek: Record<string, any[]> = {};
   userSessions.forEach(us => {
     if (us.status === "registered" && us.session?.date) {
       const key = getSessionWeekKey(us.session);
@@ -226,10 +231,10 @@ const SessionList = () => {
             const bDate = parseISO(bVal.sessions[0].date);
             return aDate.getTime() - bDate.getTime();
           })
-          .map(([weekKey, { label, sessions }]) => (
+          .map(([weekKey, weekGroup]) => (
             <div key={weekKey} className="mb-8">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold">{label}</h3>
+                <h3 className="text-lg font-semibold">{weekGroup.label}</h3>
                 {profile?.membership_type === "Founder" && (
                   <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-900 rounded text-xs font-medium">
                     Free sessions used: {founderWeekCounts[weekKey] || 0} / 4
@@ -237,7 +242,7 @@ const SessionList = () => {
                 )}
               </div>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {sessions.map((session, idx) => {
+                {weekGroup.sessions.map((session, idx) => {
                   const isFull = (session.current_registrations || 0) >= (session.total_spots || session.max_players);
                   const isRegistered = userSessions.some(us => us.session_id === session.id);
                   const isWaitlisted = session.waitlisted;
