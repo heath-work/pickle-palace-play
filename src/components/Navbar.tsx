@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X, User, LogIn } from 'lucide-react';
@@ -27,7 +28,7 @@ const Navbar = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
-              <span className="text-2xl font-bold text-pickleball-blue">Pickle Palace</span>
+              <span className="text-2xl font-bold text-pickleball-blue">Pickle Ballers Club</span>
             </Link>
           </div>
           
