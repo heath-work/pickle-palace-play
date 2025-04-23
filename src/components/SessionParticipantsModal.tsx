@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +44,7 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [waitlist, setWaitlist] = useState<WaitlistParticipant[]>([]);
   const [loading, setLoading] = useState(false);
+  const [maxPlayers, setMaxPlayers] = useState<number>(0);
 
   useEffect(() => {
     if (!open) return;
@@ -52,8 +52,23 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
     const fetchAll = async () => {
       setLoading(true);
       try {
-        // Fetch registered (and not-cancelled) participants
+        // Fetch session info to get max_players
+        const { data: sessionData, error: sessionError } = await supabase
+          .from("sessions")
+          .select("max_players")
+          .eq("id", sessionId)
+          .single();
+        
+        if (sessionError) {
+          console.error("Error fetching session:", sessionError);
+          throw sessionError;
+        }
+        
+        setMaxPlayers(sessionData?.max_players || 0);
+
+        // Fetch registered participants
         const participantsData = await getSessionParticipants(sessionId);
+        console.log("Fetched participants data:", participantsData);
 
         // Fetch waitlist
         const { data: waitlistRows, error: waitlistError } = await supabase
@@ -61,9 +76,13 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
           .select("*")
           .eq("session_id", sessionId)
           .order("position", { ascending: true });
+        
         if (waitlistError) {
           console.error("Error fetching waitlist:", waitlistError);
+          throw waitlistError;
         }
+        
+        console.log("Fetched waitlist data:", waitlistRows);
 
         let waitlistWithUsername: WaitlistParticipant[] = [];
         if (waitlistRows && waitlistRows.length > 0) {
@@ -72,13 +91,17 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
             .from("profiles")
             .select("id, username")
             .in("id", userIds);
+            
           if (profilesError) {
             console.error("Error fetching profiles for waitlist:", profilesError);
+            throw profilesError;
           }
+          
           const userMap = new Map<string, string | null>();
           if (profiles) {
             profiles.forEach(profile => userMap.set(profile.id, profile.username));
           }
+          
           waitlistWithUsername = waitlistRows.map((wl, idx) => ({
             ...wl,
             position: wl.position ?? (idx + 1),
@@ -86,7 +109,35 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
           }));
         }
 
-        setParticipants(Array.isArray(participantsData) ? participantsData : []);
+        // We need to identify which participants should be registered vs waitlisted
+        // Only the first maxPlayers should be registered, the rest should be in waitlist
+        if (Array.isArray(participantsData)) {
+          // Sort participants by their registration date (we'll use id as a proxy since it's a UUID with timestamp)
+          const sortedParticipants = [...participantsData].sort((a, b) => a.id.localeCompare(b.id));
+          
+          // Keep track of users we've already seen to prevent duplicates
+          const seenUserIds = new Set<string>();
+          
+          // Create arrays for registered and excess participants
+          let registeredParticipants: Participant[] = [];
+          
+          // Consider only up to maxPlayers for registered list
+          sortedParticipants.forEach(participant => {
+            if (!seenUserIds.has(participant.user_id)) {
+              seenUserIds.add(participant.user_id);
+              if (registeredParticipants.length < maxPlayers) {
+                registeredParticipants.push(participant);
+              }
+              // Note: Any excess participants who are marked as "registered" in the database
+              // should be shown in the waitlist if they're not already there
+            }
+          });
+          
+          setParticipants(registeredParticipants);
+        } else {
+          setParticipants([]);
+        }
+        
         setWaitlist(waitlistWithUsername);
       } catch (error) {
         console.error("Error fetching participants or waitlist:", error);
@@ -182,4 +233,3 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
     </Dialog>
   );
 };
-
