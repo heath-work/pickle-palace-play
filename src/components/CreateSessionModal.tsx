@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { Court } from '@/types/supabase';
 import { Session } from '@/types/sessions';
+import { CourtMultiSelect } from './CourtMultiSelect';
 
 interface CreateSessionModalProps {
   courts: Court[];
@@ -172,7 +172,6 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
               required 
             />
           </div>
-          
           <div>
             <Label>Description (Optional)</Label>
             <Input 
@@ -180,27 +179,16 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
           </div>
-          
           <div>
             <Label>Courts (Multi-select)</Label>
-            <Select 
+            <CourtMultiSelect
+              label="Courts (Multi-select)"
+              options={courts}
               value={formData.court_ids}
-              onValueChange={(value: string[]) => setFormData({ ...formData, court_ids: value })}
-              required
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select courts" />
-              </SelectTrigger>
-              <SelectContent className="z-[100] bg-white">
-                {courts.map((court) => (
-                  <SelectItem key={court.id} value={court.id.toString()}>
-                    {court.name} ({court.type})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={court_ids => setFormData({ ...formData, court_ids })}
+              placeholder="Select court(s)"
+            />
           </div>
-
           <div className="space-y-4">
             <Label>Is this a recurring session?</Label>
             <RadioGroup
@@ -218,7 +206,6 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
               </div>
             </RadioGroup>
           </div>
-          
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Start Date</Label>
@@ -242,7 +229,6 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
               </div>
             )}
           </div>
-          
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Start Time</Label>
@@ -263,7 +249,6 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
               />
             </div>
           </div>
-          
           <div>
             <Label>Skill Level</Label>
             <Select 
@@ -282,7 +267,6 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
               </SelectContent>
             </Select>
           </div>
-          
           <div>
             <Label>Max Players</Label>
             <Input 
@@ -293,7 +277,6 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
             />
             <span className="text-xs text-gray-500">Auto-calculated: 4 per court selected</span>
           </div>
-          
           <Button type="submit" className="w-full">Create Session{formData.is_recurring ? 's' : ''}</Button>
         </form>
       </DialogContent>
