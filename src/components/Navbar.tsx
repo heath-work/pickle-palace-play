@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X, User, LogIn } from 'lucide-react';
@@ -48,6 +47,9 @@ const Navbar = () => {
             </Link>
             <Link to="/group-play" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
               Group Play
+            </Link>
+            <Link to="/blog" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
+              Blog
             </Link>
             
             {user ? (
@@ -128,6 +130,13 @@ const Navbar = () => {
             >
               Group Play
             </Link>
+            <Link
+              to="/blog"
+              className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Blog
+            </Link>
             
             {user ? (
               <Link 
@@ -169,4 +178,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-

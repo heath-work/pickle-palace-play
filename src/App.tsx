@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -18,6 +19,8 @@ import MembershipSuccess from "./pages/MembershipSuccess";
 import BookingSuccess from "./pages/BookingSuccess";
 import TestMembership from "./pages/TestMembership";
 import GroupPlay from "./pages/GroupPlay";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +51,8 @@ const AppRoutes = () => {
         <Route path="/group-play" element={<GroupPlay />} />
         <Route path="/booking-success" element={<BookingSuccess />} />
         <Route path="/booking-history" element={<BookingHistory />} />
+        <Route path="/blog" element={<Blog />} />
+        <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/auth/signin" element={<SignInPage />} />
         <Route path="/auth/signup" element={<SignUpPage />} />
         <Route path="/auth/profile" element={<ProfilePage />} />
