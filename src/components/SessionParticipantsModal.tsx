@@ -2,9 +2,10 @@
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getSessionParticipants } from "@/integrations/supabase/get-session-participants";
+import { supabase } from "@/integrations/supabase/client";
 
 // Props for the modal
 interface SessionParticipantsModalProps {
@@ -43,20 +44,11 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
       try {
         console.log("Fetching participants for session:", sessionId);
         
-        // Using a raw SQL query with joins to get all the data we need in one go
-        const { data, error } = await supabase.rpc('get_session_participants', {
-          p_session_id: sessionId
-        });
-
-        if (error) {
-          console.error("Error calling get_session_participants:", error);
-          // Fallback method if RPC fails
-          await fetchParticipantsFallback();
-          return;
-        }
-
-        console.log("Participants data from RPC:", data);
-        setParticipants(data || []);
+        // Using our utility function to get participants
+        const participantsData = await getSessionParticipants(sessionId);
+        
+        console.log("Participants data:", participantsData);
+        setParticipants(participantsData);
         setLoading(false);
       } catch (error) {
         console.error("Error in fetchParticipants:", error);
