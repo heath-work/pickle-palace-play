@@ -27,11 +27,14 @@ export function useSessions() {
         throw error;
       }
 
-      // Count all non-cancelled registrations for each session
+      // For sessions with multiple courts, assume max_players is per court
+      // You may want to store number of courts as a field in the session if not already
+
+      // Calculate total_spots and count current registrations
       const sessionsWithRegistrationCount = await Promise.all(
         (data || []).map(async (session) => {
           try {
-            // Correct: count ALL active registrations across all users
+            // Count ALL registrations for this session
             const { count, error: countError } = await supabase
               .from('session_registrations')
               .select('*', { count: 'exact', head: true })
@@ -42,21 +45,38 @@ export function useSessions() {
               console.error('Error fetching registration count:', countError);
               return {
                 ...session,
-                current_registrations: 0
+                current_registrations: 0,
+                // Default to a single court's spots if multi not supported
+                total_spots: session.max_players,
               } as Session;
             }
 
-            console.log(`Session ${session.id} has ${count} registrations`);
+            // If there's a `court_count` field, use it; if court_id is an array, use length; otherwise, use 1
+            // For now, default to 1 court unless multi-court data is there
+            let courtMultiplier = 1;
+            if (Array.isArray(session.court_id)) {
+              courtMultiplier = session.court_id.length;
+            } else if (typeof session.court_count === 'number') {
+              courtMultiplier = session.court_count;
+            }
+
+            // Fallback: if none exists, try to guess from title (not recommended, but to support current schema)
+            // Most likely there is only one court per session unless custom session creation supports more
+
+            // total_spots: max_players x courtMultiplier
+            const total_spots = (session.max_players || 0) * courtMultiplier;
 
             return {
               ...session,
-              current_registrations: count || 0
+              current_registrations: count || 0,
+              total_spots: total_spots > 0 ? total_spots : session.max_players,
             } as Session;
           } catch (countErr) {
             console.error('Exception fetching registration count:', countErr);
             return {
               ...session,
-              current_registrations: 0
+              current_registrations: 0,
+              total_spots: session.max_players,
             } as Session;
           }
         })

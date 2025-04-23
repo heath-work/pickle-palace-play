@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -38,7 +37,6 @@ const UpcomingSessions = ({ sessions, isLoading }: UpcomingSessionsProps) => {
             <Button variant="outline">View All Sessions</Button>
           </Link>
         </div>
-        
         <div className="grid md:grid-cols-3 gap-4">
           {sessions.map((session) => (
             <Card key={session.id} className="hover:shadow-lg transition-shadow">
@@ -59,7 +57,7 @@ const UpcomingSessions = ({ sessions, isLoading }: UpcomingSessionsProps) => {
                   <div className="flex items-center space-x-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     <span>
-                      {session.current_registrations || 0} / {session.max_players} registered
+                      {(session.current_registrations || 0).toLocaleString()} / {(session.total_spots || session.max_players).toLocaleString()} registered
                     </span>
                   </div>
                   {session.skill_level && (

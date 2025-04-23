@@ -127,7 +127,7 @@ const SessionList = () => {
                   <div className="flex items-center space-x-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     <span>
-                      {session.current_registrations || 0} / {session.max_players} registered
+                      {(session.current_registrations || 0).toLocaleString()} / {(session.total_spots || session.max_players).toLocaleString()} registered
                     </span>
                   </div>
                   {session.skill_level && (
@@ -151,10 +151,10 @@ const SessionList = () => {
                     {!userSessions.some(us => us.session_id === session.id) ? (
                       <Button
                         onClick={() => registerForSession(session.id)}
-                        disabled={session.current_registrations >= session.max_players}
+                        disabled={(session.current_registrations || 0) >= (session.total_spots || session.max_players)}
                         className="w-full"
                       >
-                        {session.current_registrations >= session.max_players
+                        {(session.current_registrations || 0) >= (session.total_spots || session.max_players)
                           ? 'Waitlist'
                           : 'Register'}
                       </Button>

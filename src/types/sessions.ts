@@ -1,4 +1,3 @@
-
 import { User } from '@supabase/supabase-js';
 import { Court } from './supabase';
 
@@ -23,6 +22,7 @@ export type Session = {
     type: string;
   };
   current_registrations?: number;
+  total_spots?: number;
 };
 
 export type SessionRegistration = {
@@ -34,4 +34,3 @@ export type SessionRegistration = {
   user?: Pick<User, 'email' | 'id'>;
   session?: Session;
 };
-
