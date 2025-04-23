@@ -21,7 +21,7 @@ const MembershipPage = () => {
           </div>
         </div>
       </div>
-
+<h2>What the heck</h2>
       <MembershipPlans />
 
       <div className="py-16 bg-white" id="basic">
