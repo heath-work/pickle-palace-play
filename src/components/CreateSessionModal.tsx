@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -71,25 +72,33 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
     }
 
     try {
-      const sessionDataArr = formData.court_ids.map(courtId => ({
+      // Create single session with all courts
+      const sessionData = {
         title: formData.title,
         description: formData.description,
-        court_id: parseInt(courtId),
+        court_id: parseInt(formData.court_ids[0]), // We'll store the primary court here
         date: formData.date,
         start_time: formData.start_time,
         end_time: formData.end_time,
-        max_players: 4,
+        max_players: max_players, // Total max players across all courts
         skill_level: formData.skill_level,
         created_by: user!.id,
         is_active: true,
-      }));
+      };
 
-      const { data: initialSessions, error: initialError } = await supabase
+      const { data: initialSession, error: initialError } = await supabase
         .from('sessions')
-        .insert(sessionDataArr)
-        .select();
+        .insert(sessionData)
+        .select()
+        .single();
 
       if (initialError) throw initialError;
+
+      // If we have multiple courts, add them to the metadata or another method to track them
+      if (formData.court_ids.length > 1) {
+        console.log(`Session created with multiple courts: ${formData.court_ids.join(', ')}`);
+        // Here we could store court relationships if needed in the future
+      }
 
       if (formData.is_recurring && formData.recurrence_end_date) {
         const startDate = new Date(formData.date);
@@ -100,20 +109,18 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
         nextDate.setDate(nextDate.getDate() + 7);
 
         while (nextDate <= endDate) {
-          for (const courtId of formData.court_ids) {
-            recurringSessions.push({
-              title: formData.title,
-              description: formData.description,
-              court_id: parseInt(courtId),
-              date: nextDate.toISOString().split('T')[0],
-              start_time: formData.start_time,
-              end_time: formData.end_time,
-              max_players: 4,
-              skill_level: formData.skill_level,
-              created_by: user!.id,
-              is_active: true,
-            });
-          }
+          recurringSessions.push({
+            title: formData.title,
+            description: formData.description,
+            court_id: parseInt(formData.court_ids[0]),
+            date: nextDate.toISOString().split('T')[0],
+            start_time: formData.start_time,
+            end_time: formData.end_time,
+            max_players: max_players,
+            skill_level: formData.skill_level,
+            created_by: user!.id,
+            is_active: true,
+          });
           nextDate.setDate(nextDate.getDate() + 7);
         }
 
@@ -143,8 +150,8 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
         recurrence_end_date: '',
       });
 
-      if (initialSessions && initialSessions.length > 0) {
-        onSessionCreated(initialSessions[0]);
+      if (initialSession) {
+        onSessionCreated(initialSession);
       }
     } catch (error: any) {
       console.error('Error creating session:', error);

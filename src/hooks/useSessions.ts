@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -16,6 +17,34 @@ export function useSessions() {
     setIsLoading(true);
     try {
       console.log('Fetching all available sessions');
+      
+      // Get current date and time in AEST (UTC+10)
+      const now = new Date();
+      const aestOffset = 10 * 60; // AEST is UTC+10 (10 hours = 600 minutes)
+      // Get the current UTC offset in minutes and adjust for AEST
+      const utcOffset = now.getTimezoneOffset(); // returns minutes
+      const totalOffsetMinutes = utcOffset + aestOffset;
+      
+      // Create a new Date object with the AEST adjustment
+      const aestNow = new Date(now.getTime() + totalOffsetMinutes * 60000);
+      const aestDate = aestNow.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      console.log('Current AEST date for filtering:', aestDate);
+      
+      // Archive past sessions
+      const { error: archiveError } = await supabase
+        .from('sessions')
+        .update({ is_active: false })
+        .lt('date', aestDate)
+        .eq('is_active', true);
+      
+      if (archiveError) {
+        console.error('Error archiving past sessions:', archiveError);
+      } else {
+        console.log('Successfully archived past sessions');
+      }
+      
+      // Fetch active sessions (not in the past)
       const { data, error } = await supabase
         .from('sessions')
         .select('*, courts(name, type)')
