@@ -20,6 +20,8 @@ type Participant = {
   user_id: string;
   status: string;
   username: string | null;
+  // Adding registration timestamp property
+  registration_time?: string;
 };
 
 // Waitlist participant type
@@ -65,15 +67,28 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
           throw sessionError;
         }
         
-        setMaxPlayers(sessionData?.max_players || 0);
+        const maxPlayersLimit = sessionData?.max_players || 0;
+        setMaxPlayers(maxPlayersLimit);
+        console.log("Max players for session:", maxPlayersLimit);
 
         // Fetch registered participants
         const participantsData = await getSessionParticipants(sessionId);
         console.log("Fetched participants data:", participantsData);
         
-        // Set participants directly - we'll display all registered participants
-        // The waitlist is managed separately in the session_waitlist table
-        setParticipants(Array.isArray(participantsData) ? participantsData : []);
+        // Sort participants by registration time (using ID as a proxy since UUIDs have timestamp embedded)
+        const sortedParticipants = Array.isArray(participantsData) 
+          ? [...participantsData].sort((a, b) => a.id.localeCompare(b.id))
+          : [];
+        
+        console.log("Sorted participants:", sortedParticipants);
+        
+        // Mark participants as registered or waitlisted based on maxPlayers
+        const processedParticipants = sortedParticipants.map((p, index) => ({
+          ...p,
+          status: index < maxPlayersLimit ? 'registered' : 'waitlisted'
+        }));
+        
+        setParticipants(processedParticipants);
 
         // Fetch waitlist
         const { data: waitlistRows, error: waitlistError } = await supabase
@@ -141,7 +156,7 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
           <div className="space-y-4 max-h-[400px] overflow-auto">
             <div>
               <div className="font-semibold mb-1">Registered Participants</div>
-              {participants.length === 0 ? (
+              {participants.filter(p => p.status === 'registered').length === 0 ? (
                 <div className="text-center text-gray-500 py-2">
                   No registered participants found.
                 </div>
@@ -154,28 +169,30 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {participants.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell>
-                          {p.username || p.user_id}
-                          <span className="ml-2 text-xs text-gray-400">
-                            ({p.user_id.slice(0, 8)}…)
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Badge className={statusColors[p.status] + " capitalize"}>
-                            {p.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {participants
+                      .filter(p => p.status === 'registered')
+                      .map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell>
+                            {p.username || p.user_id}
+                            <span className="ml-2 text-xs text-gray-400">
+                              ({p.user_id.slice(0, 8)}…)
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge className={statusColors[p.status] + " capitalize"}>
+                              {p.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
               )}
             </div>
             <div>
               <div className="font-semibold mt-4 mb-1">Waitlist</div>
-              {waitlist.length === 0 ? (
+              {participants.filter(p => p.status === 'waitlisted').length === 0 && waitlist.length === 0 ? (
                 <div className="text-center text-gray-400 py-2">
                   No users on the waitlist.
                 </div>
@@ -188,7 +205,22 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {waitlist.map((w) => (
+                    {/* First show automatically waitlisted participants */}
+                    {participants
+                      .filter(p => p.status === 'waitlisted')
+                      .map((p, index) => (
+                        <TableRow key={p.id}>
+                          <TableCell>
+                            {p.username || p.user_id}
+                            <span className="ml-2 text-xs text-gray-400">
+                              ({p.user_id.slice(0, 8)}…)
+                            </span>
+                          </TableCell>
+                          <TableCell>{index + 1}</TableCell>
+                        </TableRow>
+                      ))}
+                    {/* Then show users from the waitlist table */}
+                    {waitlist.map((w, idx) => (
                       <TableRow key={w.id}>
                         <TableCell>
                           {w.username || w.user_id}
@@ -196,7 +228,7 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
                             ({w.user_id.slice(0, 8)}…)
                           </span>
                         </TableCell>
-                        <TableCell>{w.position}</TableCell>
+                        <TableCell>{participants.filter(p => p.status === 'waitlisted').length + w.position}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
