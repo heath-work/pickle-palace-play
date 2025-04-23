@@ -10,19 +10,6 @@ export const useEditSession = (fetchSessions: () => Promise<void>) => {
       console.log('Updating session with ID:', sessionId);
       console.log('Update data:', data);
       
-      // First check if the session exists
-      const { data: checkData, error: checkError } = await supabase
-        .from('sessions')
-        .select('id')
-        .eq('id', sessionId)
-        .single();
-        
-      if (checkError) {
-        console.error('Session check error:', checkError);
-        toast.error('Unable to find session');
-        return;
-      }
-      
       // Perform the update operation
       const { error, data: updatedData } = await supabase
         .from('sessions')
@@ -39,10 +26,8 @@ export const useEditSession = (fetchSessions: () => Promise<void>) => {
       console.log('Session updated successfully:', updatedData);
       toast.success('Session updated');
       
-      // Force refresh sessions list
-      setTimeout(() => {
-        fetchSessions();
-      }, 500);
+      // Refresh sessions list immediately
+      fetchSessions();
     } catch (err) {
       console.error('Edit session exception:', err);
       toast.error('An unexpected error occurred while updating the session');
