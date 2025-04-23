@@ -1,14 +1,23 @@
 
 import { supabase } from "./client";
 
+// Define the return type for our RPC function
+type SessionParticipant = {
+  id: string;
+  user_id: string;
+  status: string;
+  username: string | null;
+};
+
 // This function is a convenient wrapper around fetching session participants
 export async function getSessionParticipants(sessionId: string) {
   try {
     console.log("Fetching session participants for session:", sessionId);
     
     // Get all registrations for this session using direct SQL query to bypass RLS
+    // Explicitly type the RPC call with our SessionParticipant type
     const { data: registrations, error: regError } = await supabase
-      .rpc('get_session_participants', { p_session_id: sessionId });
+      .rpc<SessionParticipant[]>('get_session_participants', { p_session_id: sessionId });
     
     if (regError) {
       console.error("Error fetching session registrations:", regError);
