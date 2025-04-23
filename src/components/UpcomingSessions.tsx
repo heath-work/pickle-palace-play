@@ -39,45 +39,50 @@ const UpcomingSessions = ({ sessions, isLoading }: UpcomingSessionsProps) => {
           </Link>
         </div>
         <div className="grid md:grid-cols-3 gap-4">
-          {sessions.map((session) => (
-            <Card key={session.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle>{session.title}</CardTitle>
-                <div className="text-sm text-muted-foreground">
-                  {session.courts?.name} - {session.courts?.type} Court
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span>
-                      {format(parseISO(session.date), 'PPP')} at {session.start_time}
-                    </span>
+          {sessions.map((session) => {
+            const isFull = (session.current_registrations || 0) >= (session.total_spots || session.max_players);
+            
+            return (
+              <Card key={session.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-2">
+                  <CardTitle>{session.title}</CardTitle>
+                  <div className="text-sm text-muted-foreground">
+                    {session.courts?.name} - {session.courts?.type} Court
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>
-                      {(session.current_registrations || 0).toLocaleString()} / {(session.total_spots || session.max_players).toLocaleString()} registered
-                    </span>
-                  </div>
-                  {session.skill_level && (
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
                     <div className="flex items-center space-x-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <Badge variant="secondary">{session.skill_level} Level</Badge>
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        {format(parseISO(session.date), 'PPP')} at {session.start_time}
+                      </span>
                     </div>
-                  )}
-                </div>
-                <div className="mt-4">
-                  <Link to="/booking" className="w-full">
-                    <Button className="w-full">
-                      Register Now
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    <div className="flex items-center space-x-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        {(session.current_registrations || 0).toLocaleString()} / {(session.total_spots || session.max_players).toLocaleString()} registered
+                        {isFull && <span className="ml-2 text-red-500 font-medium">(Full)</span>}
+                      </span>
+                    </div>
+                    {session.skill_level && (
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <Badge variant="secondary">{session.skill_level} Level</Badge>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-4">
+                    <Link to="/group-play" className="w-full">
+                      <Button className="w-full" variant={isFull ? "outline" : "default"}>
+                        {isFull ? "Join Waitlist" : "Register Now"}
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +26,7 @@ function getAestDateString() {
 }
 
 const SessionList = () => {
-  const { sessions, userSessions, registerForSession, cancelSessionRegistration, isLoading, fetchSessions } = useSessions();
+  const { sessions, userSessions, registerForSession, cancelSessionRegistration, cancelWaitlist, isLoading, fetchSessions } = useSessions();
   const { user } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [courts, setCourts] = useState<Court[]>([]);
@@ -164,97 +163,115 @@ const SessionList = () => {
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSessions.map((session) => (
-            <Card key={session.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-2 flex flex-row items-start justify-between">
-                <div>
-                  <CardTitle>{session.title}</CardTitle>
-                  <div className="text-sm text-muted-foreground">
-                    {session.courts?.name} - {session.courts?.type} Court
+          {filteredSessions.map((session) => {
+            const isFull = (session.current_registrations || 0) >= (session.total_spots || session.max_players);
+            const isRegistered = userSessions.some(us => us.session_id === session.id);
+            const isWaitlisted = session.waitlisted;
+            
+            return (
+              <Card key={session.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-2 flex flex-row items-start justify-between">
+                  <div>
+                    <CardTitle>{session.title}</CardTitle>
+                    <div className="text-sm text-muted-foreground">
+                      {session.courts?.name} - {session.courts?.type} Court
+                    </div>
                   </div>
-                </div>
-                {isAdmin && (
-                  <div className="flex flex-row gap-2 items-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setEditModal({ open: true, session })}
-                      aria-label="Edit"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteSession(session.id)}
-                      aria-label="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span>
-                      {format(parseISO(session.date), 'PPP')} at {session.start_time}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>
-                      {(session.current_registrations || 0).toLocaleString()} / {(session.total_spots || session.max_players).toLocaleString()} registered
-                    </span>
-                  </div>
-                  {session.skill_level && (
-                    <div className="flex items-center space-x-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <Badge variant="secondary">{session.skill_level} Level</Badge>
+                  {isAdmin && (
+                    <div className="flex flex-row gap-2 items-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setEditModal({ open: true, session })}
+                        aria-label="Edit"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteSession(session.id)}
+                        aria-label="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   )}
-                </div>
-                <div className="mt-4">
-                  <Button
-                    variant="secondary"
-                    className="w-full mb-2"
-                    onClick={() => setModalSessionId(session.id)}
-                  >
-                    View Participants
-                  </Button>
-                </div>
-                {user && (
-                  <div className="mt-2">
-                    {!userSessions.some(us => us.session_id === session.id) ? (
-                      <Button
-                        onClick={() => registerForSession(session.id)}
-                        disabled={(session.current_registrations || 0) >= (session.total_spots || session.max_players)}
-                        className="w-full"
-                      >
-                        {(session.current_registrations || 0) >= (session.total_spots || session.max_players)
-                          ? 'Waitlist'
-                          : 'Register'}
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="destructive"
-                        onClick={() => {
-                          const registration = userSessions.find(us => us.session_id === session.id);
-                          if (registration) {
-                            cancelSessionRegistration(registration.id);
-                          }
-                        }}
-                        className="w-full"
-                      >
-                        Cancel Registration
-                      </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        {format(parseISO(session.date), 'PPP')} at {session.start_time}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        {(session.current_registrations || 0).toLocaleString()} / {(session.total_spots || session.max_players).toLocaleString()} registered
+                        {isFull && <span className="ml-2 text-red-500 font-medium">(Full)</span>}
+                        {session.waitlist_count > 0 && (
+                          <span className="ml-2 text-amber-600 font-medium">
+                            ({session.waitlist_count} waitlisted)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    {session.skill_level && (
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <Badge variant="secondary">{session.skill_level} Level</Badge>
+                      </div>
                     )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="mt-4">
+                    <Button
+                      variant="secondary"
+                      className="w-full mb-2"
+                      onClick={() => setModalSessionId(session.id)}
+                    >
+                      View Participants
+                    </Button>
+                  </div>
+                  {user && (
+                    <div className="mt-2">
+                      {isRegistered ? (
+                        <Button
+                          variant="destructive"
+                          onClick={() => {
+                            const registration = userSessions.find(us => us.session_id === session.id);
+                            if (registration) {
+                              cancelSessionRegistration(registration.id, session.id);
+                            }
+                          }}
+                          className="w-full"
+                        >
+                          Cancel Registration
+                        </Button>
+                      ) : isWaitlisted ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => cancelWaitlist(session.id)}
+                          className="w-full"
+                        >
+                          Leave Waitlist
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => registerForSession(session.id)}
+                          className="w-full"
+                          variant={isFull ? "outline" : "default"}
+                        >
+                          {isFull ? "Join Waitlist" : "Register"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
       {modalSessionId && (
