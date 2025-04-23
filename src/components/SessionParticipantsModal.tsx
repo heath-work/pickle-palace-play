@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +70,10 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
         // Fetch registered participants
         const participantsData = await getSessionParticipants(sessionId);
         console.log("Fetched participants data:", participantsData);
+        
+        // Set participants directly - we'll display all registered participants
+        // The waitlist is managed separately in the session_waitlist table
+        setParticipants(Array.isArray(participantsData) ? participantsData : []);
 
         // Fetch waitlist
         const { data: waitlistRows, error: waitlistError } = await supabase
@@ -107,35 +112,6 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
             position: wl.position ?? (idx + 1),
             username: userMap.get(wl.user_id) || `User-${wl.user_id.substring(0, 6)}`
           }));
-        }
-
-        // We need to identify which participants should be registered vs waitlisted
-        // Only the first maxPlayers should be registered, the rest should be in waitlist
-        if (Array.isArray(participantsData)) {
-          // Sort participants by their registration date (we'll use id as a proxy since it's a UUID with timestamp)
-          const sortedParticipants = [...participantsData].sort((a, b) => a.id.localeCompare(b.id));
-          
-          // Keep track of users we've already seen to prevent duplicates
-          const seenUserIds = new Set<string>();
-          
-          // Create arrays for registered and excess participants
-          let registeredParticipants: Participant[] = [];
-          
-          // Consider only up to maxPlayers for registered list
-          sortedParticipants.forEach(participant => {
-            if (!seenUserIds.has(participant.user_id)) {
-              seenUserIds.add(participant.user_id);
-              if (registeredParticipants.length < maxPlayers) {
-                registeredParticipants.push(participant);
-              }
-              // Note: Any excess participants who are marked as "registered" in the database
-              // should be shown in the waitlist if they're not already there
-            }
-          });
-          
-          setParticipants(registeredParticipants);
-        } else {
-          setParticipants([]);
         }
         
         setWaitlist(waitlistWithUsername);
