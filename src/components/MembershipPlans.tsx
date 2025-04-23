@@ -319,14 +319,14 @@ const MembershipPlans = () => {
   return (
     <div className="py-12 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
+        {/* <div className="text-center">
           <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
             Membership Plans
           </h2>
           <p className="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
             Choose the perfect membership plan for your pickleball journey.
           </p>
-        </div>
+        </div> */}
 
         <div className="mt-12 space-y-4 sm:mt-16 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-6 lg:max-w-4xl lg:mx-auto xl:max-w-none xl:grid-cols-4">
           {plans.map((plan) => (
