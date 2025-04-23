@@ -14,11 +14,10 @@ export async function getSessionParticipants(sessionId: string) {
   try {
     console.log("Fetching session participants for session:", sessionId);
 
-    // Use a more generic approach instead of the strongly typed RPC
-    // that's causing TypeScript constraint issues
+    // Call the RPC function with the correct parameter name (p_session_id)
     const { data, error } = await supabase.rpc(
-      'get_session_participants', 
-      { session_id: sessionId }
+      'get_session_participants',
+      { p_session_id: sessionId }
     );
 
     if (error) {

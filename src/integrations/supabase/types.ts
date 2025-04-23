@@ -248,6 +248,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_session_participants: {
+        Args: { p_session_id: string }
+        Returns: {
+          id: string
+          user_id: string
+          status: string
+          username: string
+        }[]
+      }
       has_role: {
         Args: { user_id: string; role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
