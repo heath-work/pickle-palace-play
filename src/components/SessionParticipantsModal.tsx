@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { User } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
 
 interface SessionParticipantsModalProps {
@@ -41,19 +40,53 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
     setLoading(true);
 
     const fetchParticipants = async () => {
-      // Fetch all session_registrations (not cancelled) and get user info
-      const { data, error } = await supabase
-        .from("session_registrations")
-        .select("id, user_id, status, user:profiles(email, id)")
-        .eq("session_id", sessionId)
-        .not("status", "eq", "cancelled");
+      try {
+        // First fetch all session_registrations
+        const { data: registrations, error: regError } = await supabase
+          .from("session_registrations")
+          .select("id, user_id, status")
+          .eq("session_id", sessionId)
+          .not("status", "eq", "cancelled");
 
-      if (error) {
+        if (regError) {
+          console.error("Error fetching registrations:", regError);
+          setParticipants([]);
+          setLoading(false);
+          return;
+        }
+
+        // For each registration, get the user profile information
+        const participantsWithProfiles = await Promise.all(
+          (registrations || []).map(async (reg) => {
+            // Get user profile from the profiles table
+            const { data: profile, error: profileError } = await supabase
+              .from("profiles")
+              .select("id, email:username") // Using username as email for now
+              .eq("id", reg.user_id)
+              .maybeSingle();
+
+            if (profileError) {
+              console.error("Error fetching profile:", profileError);
+              return {
+                ...reg,
+                user: { id: reg.user_id, email: "Unknown user" }
+              };
+            }
+
+            return {
+              ...reg,
+              user: profile ? { id: profile.id, email: profile.email } : { id: reg.user_id, email: "Unknown user" }
+            };
+          })
+        );
+
+        setParticipants(participantsWithProfiles);
+      } catch (error) {
+        console.error("Error in fetchParticipants:", error);
         setParticipants([]);
-      } else {
-        setParticipants(data || []);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchParticipants();
