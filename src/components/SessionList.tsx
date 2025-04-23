@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useSessions } from '@/hooks/useSessions';
 import { useAuth } from '@/contexts/AuthContext';
 import { Clock, Users, MapPin, Trash2, Edit, DollarSign } from 'lucide-react';
-import { format, parseISO, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
+import { format, parseISO, startOfWeek, endOfWeek, isWithinInterval, getISOWeek, getYear } from 'date-fns';
 import CreateSessionModal from './CreateSessionModal';
 import { Court } from '@/types/supabase';
 import { Session } from '@/types/sessions';
@@ -35,16 +35,52 @@ function getSessionDiscount(profile) {
   return 0;
 }
 
-function getFounderFreeSessionsCount(userSessions) {
-  const now = new Date();
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+function getSessionWeekKey(session) {
+  const sessionDate = parseISO(session.date);
+  return `${getISOWeek(sessionDate)}-${getYear(sessionDate)}`;
+}
 
-  return userSessions.filter(us => {
-    if (!us.session || us.status !== 'registered') return false;
-    const sessionDate = parseISO(us.session.date);
-    return isWithinInterval(sessionDate, { start: weekStart, end: weekEnd });
-  }).length;
+function getWeekLabel(session) {
+  const sessionDate = parseISO(session.date);
+  const weekStart = startOfWeek(sessionDate, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(sessionDate, { weekStartsOn: 1 });
+  return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
+}
+
+function groupSessionsByWeek(sessions) {
+  return sessions.reduce((acc, session) => {
+    const key = getSessionWeekKey(session);
+    if (!acc[key]) {
+      acc[key] = {
+        label: getWeekLabel(session),
+        sessions: [],
+      };
+    }
+    acc[key].sessions.push(session);
+    return acc;
+  }, {});
+}
+
+function getFounderFreeSessionCounts(userSessions) {
+  const freeCountByWeek = {};
+  userSessions.forEach(us => {
+    if (us.status === "registered" && us.session?.date) {
+      const key = getSessionWeekKey(us.session);
+      if (!freeCountByWeek[key]) freeCountByWeek[key] = [];
+      freeCountByWeek[key].push(us);
+    }
+  });
+  Object.keys(freeCountByWeek).forEach(key => {
+    freeCountByWeek[key] = freeCountByWeek[key]
+      .sort((a, b) => {
+        if (!a.session?.date || !b.session?.date) return 0;
+        return a.session.date.localeCompare(b.session.date);
+      })
+      .slice(0, 4);
+  });
+  return Object.fromEntries(
+    Object.entries(freeCountByWeek).map(([k, arr]) => [k, arr.length])
+  );
 }
 
 const SessionList = () => {
@@ -83,7 +119,6 @@ const SessionList = () => {
         }
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -104,7 +139,6 @@ const SessionList = () => {
         }
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -122,7 +156,6 @@ const SessionList = () => {
         .eq('user_id', user.id)
         .eq('role', 'admin')
         .maybeSingle();
-      
       console.log('Admin check result:', data);
       setIsAdmin(!!data);
     };
@@ -130,10 +163,16 @@ const SessionList = () => {
   }, [user]);
 
   const aestDate = getAestDateString();
-  const filteredSessions = (selectedFilter === 'my' 
+  const filteredSessions = (selectedFilter === 'my'
     ? userSessions.map(us => us.session as Session).filter(Boolean)
     : sessions
   ).filter((session) => session.date >= aestDate);
+
+  const weeklyGroups = groupSessionsByWeek(filteredSessions);
+  const founderWeekCounts =
+    profile?.membership_type === "Founder"
+      ? getFounderFreeSessionCounts(userSessions)
+      : {};
 
   const handleSessionCreated = (newSession: Session) => {
     fetchSessions();
@@ -151,21 +190,17 @@ const SessionList = () => {
     await deleteSession(sessionId);
   };
 
-  const founderFreeSessionsCount = profile?.membership_type === "Founder"
-    ? getFounderFreeSessionsCount(userSessions)
-    : 0;
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
         <div className="flex gap-2">
-          <Button 
+          <Button
             variant={selectedFilter === 'all' ? 'default' : 'outline'}
             onClick={() => setSelectedFilter('all')}
           >
             All Sessions
           </Button>
-          <Button 
+          <Button
             variant={selectedFilter === 'my' ? 'default' : 'outline'}
             onClick={() => setSelectedFilter('my')}
             disabled={!user}
@@ -178,175 +213,185 @@ const SessionList = () => {
         )}
       </div>
 
-      {profile?.membership_type === "Founder" && (
-        <div className="mb-4 text-center">
-          <span className="inline-block px-4 py-2 bg-yellow-100 text-yellow-900 rounded text-sm font-medium">
-            Free sessions used this week: {founderFreeSessionsCount} / 4
-          </span>
-        </div>
-      )}
-
       {isLoading ? (
         <div>Loading sessions...</div>
-      ) : filteredSessions.length === 0 ? (
+      ) : Object.keys(weeklyGroups).length === 0 ? (
         <div className="text-center text-gray-500">
           No sessions available
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSessions.map((session, idx) => {
-            const isFull = (session.current_registrations || 0) >= (session.total_spots || session.max_players);
-            const isRegistered = userSessions.some(us => us.session_id === session.id);
-            const isWaitlisted = session.waitlisted;
+        Object.entries(weeklyGroups)
+          .sort(([aKey, aVal], [bKey, bVal]) => {
+            const aDate = parseISO(aVal.sessions[0].date);
+            const bDate = parseISO(bVal.sessions[0].date);
+            return aDate.getTime() - bDate.getTime();
+          })
+          .map(([weekKey, { label, sessions }]) => (
+            <div key={weekKey} className="mb-8">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold">{label}</h3>
+                {profile?.membership_type === "Founder" && (
+                  <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-900 rounded text-xs font-medium">
+                    Free sessions used: {founderWeekCounts[weekKey] || 0} / 4
+                  </span>
+                )}
+              </div>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {sessions.map((session, idx) => {
+                  const isFull = (session.current_registrations || 0) >= (session.total_spots || session.max_players);
+                  const isRegistered = userSessions.some(us => us.session_id === session.id);
+                  const isWaitlisted = session.waitlisted;
 
-            let priceString = `$${SESSION_BASE_PRICE}`;
-            if (profile) {
-              const type = profile.membership_type;
-              if (type === 'Premium') {
-                priceString = `$${(SESSION_BASE_PRICE * (1 - 0.15)).toFixed(2)} (15% off)`;
-              } else if (type === 'Elite') {
-                priceString = `$${(SESSION_BASE_PRICE * (1 - 0.25)).toFixed(2)} (25% off)`;
-              } else if (type === 'Founder') {
-                let userRegisteredThisWeek = userSessions
-                  .filter(us => us.status === "registered" && us.session)
-                  .sort((a, b) => {
-                    if (!a.session?.date || !b.session?.date) return 0;
-                    return a.session.date.localeCompare(b.session.date);
-                  });
-                let thisSessionIsFree = false;
-                if (userRegisteredThisWeek.length > 0) {
-                  const now = new Date();
-                  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-                  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-                  const weekSess = userRegisteredThisWeek.filter(us => {
-                    if (!us.session?.date) return false;
-                    const date = parseISO(us.session.date);
-                    return isWithinInterval(date, { start: weekStart, end: weekEnd });
-                  });
-                  const freeSessionIds = weekSess.slice(0, 4).map(us => us.session_id);
-                  if (isRegistered && freeSessionIds.includes(session.id)) {
-                    thisSessionIsFree = true;
+                  let priceString = `$${SESSION_BASE_PRICE}`;
+                  if (profile) {
+                    const type = profile.membership_type;
+                    if (type === 'Premium') {
+                      priceString = `$${(SESSION_BASE_PRICE * (1 - 0.15)).toFixed(2)} (15% off)`;
+                    } else if (type === 'Elite') {
+                      priceString = `$${(SESSION_BASE_PRICE * (1 - 0.25)).toFixed(2)} (25% off)`;
+                    } else if (type === 'Founder') {
+                      let userRegisteredThisWeek = userSessions
+                        .filter(us => us.status === "registered" && us.session)
+                        .sort((a, b) => {
+                          if (!a.session?.date || !b.session?.date) return 0;
+                          return a.session.date.localeCompare(b.session.date);
+                        });
+                      let thisSessionIsFree = false;
+                      if (userRegisteredThisWeek.length > 0) {
+                        const sessionDate = parseISO(session.date);
+                        const weekStart = startOfWeek(sessionDate, { weekStartsOn: 1 });
+                        const weekEnd = endOfWeek(sessionDate, { weekStartsOn: 1 });
+                        const weekSess = userRegisteredThisWeek.filter(us => {
+                          if (!us.session?.date) return false;
+                          const date = parseISO(us.session.date);
+                          return isWithinInterval(date, { start: weekStart, end: weekEnd });
+                        });
+                        const freeSessionIds = weekSess.slice(0, 4).map(us => us.session_id);
+                        if (isRegistered && freeSessionIds.includes(session.id)) {
+                          thisSessionIsFree = true;
+                        }
+                      }
+                      if (isRegistered && thisSessionIsFree) {
+                        priceString = 'Free (Founder bonus)';
+                      } else {
+                        priceString = `$${(SESSION_BASE_PRICE * (1 - 0.33)).toFixed(2)} (33% off)`;
+                      }
+                    }
                   }
-                }
-                if (isRegistered && thisSessionIsFree) {
-                  priceString = 'Free (Founder bonus)';
-                } else {
-                  priceString = `$${(SESSION_BASE_PRICE * (1 - 0.33)).toFixed(2)} (33% off)`;
-                }
-              }
-            }
-            
-            return (
-              <Card key={session.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-2 flex flex-row items-start justify-between">
-                  <div>
-                    <CardTitle>{session.title}</CardTitle>
-                    <div className="text-sm text-muted-foreground">
-                      {session.courts?.name} - {session.courts?.type} Court
-                    </div>
-                  </div>
-                  {isAdmin && (
-                    <div className="flex flex-row gap-2 items-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setEditModal({ open: true, session })}
-                        aria-label="Edit"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteSession(session.id)}
-                        aria-label="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>
-                        {format(parseISO(session.date), 'PPP')} at {session.start_time}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span>
-                        {(session.current_registrations || 0).toLocaleString()} / {(session.total_spots || session.max_players).toLocaleString()} registered
-                        {isFull && <span className="ml-2 text-red-500 font-medium">(Full)</span>}
-                        {session.waitlist_count > 0 && (
-                          <span className="ml-2 text-amber-600 font-medium">
-                            ({session.waitlist_count} waitlisted)
-                          </span>
+
+                  return (
+                    <Card key={session.id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader className="pb-2 flex flex-row items-start justify-between">
+                        <div>
+                          <CardTitle>{session.title}</CardTitle>
+                          <div className="text-sm text-muted-foreground">
+                            {session.courts?.name} - {session.courts?.type} Court
+                          </div>
+                        </div>
+                        {isAdmin && (
+                          <div className="flex flex-row gap-2 items-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditModal({ open: true, session })}
+                              aria-label="Edit"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteSession(session.id)}
+                              aria-label="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         )}
-                      </span>
-                    </div>
-                    {session.skill_level && (
-                      <div className="flex items-center space-x-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <Badge variant="secondary">{session.skill_level} Level</Badge>
-                      </div>
-                    )}
-                    <div className="flex items-center space-x-2 mt-2">
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium text-gray-900">
-                        {priceString}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <Button
-                      variant="secondary"
-                      className="w-full mb-2"
-                      onClick={() => setModalSessionId(session.id)}
-                    >
-                      View Participants
-                    </Button>
-                  </div>
-                  {user && (
-                    <div className="mt-2">
-                      {isRegistered ? (
-                        <Button
-                          variant="destructive"
-                          onClick={() => {
-                            const registration = userSessions.find(us => us.session_id === session.id);
-                            if (registration) {
-                              cancelSessionRegistration(registration.id, session.id);
-                            }
-                          }}
-                          className="w-full"
-                        >
-                          Cancel Registration
-                        </Button>
-                      ) : isWaitlisted ? (
-                        <Button
-                          variant="outline"
-                          onClick={() => cancelWaitlist(session.id)}
-                          className="w-full"
-                        >
-                          Leave Waitlist
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={() => registerForSession(session.id)}
-                          className="w-full"
-                          variant={isFull ? "outline" : "default"}
-                        >
-                          {isFull ? "Join Waitlist" : "Register"}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span>
+                              {format(parseISO(session.date), 'PPP')} at {session.start_time}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span>
+                              {(session.current_registrations || 0).toLocaleString()} / {(session.total_spots || session.max_players).toLocaleString()} registered
+                              {isFull && <span className="ml-2 text-red-500 font-medium">(Full)</span>}
+                              {session.waitlist_count > 0 && (
+                                <span className="ml-2 text-amber-600 font-medium">
+                                  ({session.waitlist_count} waitlisted)
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          {session.skill_level && (
+                            <div className="flex items-center space-x-2">
+                              <MapPin className="h-4 w-4 text-muted-foreground" />
+                              <Badge variant="secondary">{session.skill_level} Level</Badge>
+                            </div>
+                          )}
+                          <div className="flex items-center space-x-2 mt-2">
+                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium text-gray-900">
+                              {priceString}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <Button
+                            variant="secondary"
+                            className="w-full mb-2"
+                            onClick={() => setModalSessionId(session.id)}
+                          >
+                            View Participants
+                          </Button>
+                        </div>
+                        {user && (
+                          <div className="mt-2">
+                            {isRegistered ? (
+                              <Button
+                                variant="destructive"
+                                onClick={() => {
+                                  const registration = userSessions.find(us => us.session_id === session.id);
+                                  if (registration) {
+                                    cancelSessionRegistration(registration.id, session.id);
+                                  }
+                                }}
+                                className="w-full"
+                              >
+                                Cancel Registration
+                              </Button>
+                            ) : isWaitlisted ? (
+                              <Button
+                                variant="outline"
+                                onClick={() => cancelWaitlist(session.id)}
+                                className="w-full"
+                              >
+                                Leave Waitlist
+                              </Button>
+                            ) : (
+                              <Button
+                                onClick={() => registerForSession(session.id)}
+                                className="w-full"
+                                variant={isFull ? "outline" : "default"}
+                              >
+                                {isFull ? "Join Waitlist" : "Register"}
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          ))
       )}
       {modalSessionId && (
         <SessionParticipantsModal
