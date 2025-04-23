@@ -137,15 +137,15 @@ const SessionList = () => {
                     </div>
                   )}
                 </div>
-                {user && (
-                  <div className="mt-4">
-                    <Button
-                      variant="secondary"
-                      className="w-full mb-2"
-                      onClick={() => setModalSessionId(session.id)}
-                    >View Participants</Button>
-                  </div>
-                )}
+                <div className="mt-4">
+                  <Button
+                    variant="secondary"
+                    className="w-full mb-2"
+                    onClick={() => setModalSessionId(session.id)}
+                  >
+                    View Participants
+                  </Button>
+                </div>
                 {user && (
                   <div className="mt-2">
                     {!userSessions.some(us => us.session_id === session.id) ? (
