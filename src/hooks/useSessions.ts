@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Session, SessionRegistration, SessionStatus } from '@/types/sessions';
 import { useAuth } from '@/contexts/AuthContext';
 import { Database } from '@/integrations/supabase/types';
+import { getSessionParticipants } from '@/integrations/supabase/get-session-participants';
 
 export function useSessions() {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -30,47 +31,44 @@ export function useSessions() {
       const sessionsWithRegistrationCount = await Promise.all(
         (data || []).map(async (session) => {
           try {
-            // Count ALL registrations for this session
-            const { count, error: countError } = await supabase
-              .from('session_registrations')
-              .select('*', { count: 'exact', head: true })
-              .eq('session_id', session.id)
-              .eq('status', 'registered');
-
-            if (countError) {
-              console.error('Error fetching registration count:', countError);
+            // Use the getSessionParticipants function to get accurate participant count
+            const participants = await getSessionParticipants(session.id);
+            const registeredCount = participants.filter(p => p.status === 'registered').length;
+            
+            // Calculate total spots based on max_players (per court)
+            const totalSpots = session.max_players;
+            
+            return {
+              ...session,
+              current_registrations: registeredCount,
+              total_spots: totalSpots,
+            } as Session;
+          } catch (countErr) {
+            console.error('Exception fetching participants:', countErr);
+            
+            // Fallback method if getSessionParticipants fails
+            try {
+              const { count, error: countError } = await supabase
+                .from('session_registrations')
+                .select('*', { count: 'exact', head: true })
+                .eq('session_id', session.id)
+                .eq('status', 'registered');
+                
+              if (countError) throw countError;
+              
+              return {
+                ...session,
+                current_registrations: count || 0,
+                total_spots: session.max_players,
+              } as Session;
+            } catch (fallbackErr) {
+              console.error('Fallback counting also failed:', fallbackErr);
               return {
                 ...session,
                 current_registrations: 0,
-                // Default to a single court's spots if multi not supported
                 total_spots: session.max_players,
               } as Session;
             }
-
-            // If court_id is an array, use its length; otherwise, use 1
-            let courtMultiplier = 1;
-            if (Array.isArray(session.court_id)) {
-              courtMultiplier = session.court_id.length;
-            }
-
-            // Fallback: if none exists, try to guess from title (not recommended, but to support current schema)
-            // Most likely there is only one court per session unless custom session creation supports more
-
-            // total_spots: max_players x courtMultiplier
-            const total_spots = (session.max_players || 0) * courtMultiplier;
-
-            return {
-              ...session,
-              current_registrations: count || 0,
-              total_spots: total_spots > 0 ? total_spots : session.max_players,
-            } as Session;
-          } catch (countErr) {
-            console.error('Exception fetching registration count:', countErr);
-            return {
-              ...session,
-              current_registrations: 0,
-              total_spots: session.max_players,
-            } as Session;
           }
         })
       );
