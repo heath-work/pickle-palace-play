@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { useBlogPosts } from '@/hooks/useBlogPosts';
 import { format } from 'date-fns';
 import { BlogPost } from '@/types/blog';
+import { getAllTags, filterPostsByTag } from '@/utils/blogUtils';
 
 const BlogPostCard = ({ post }: { post: BlogPost }) => {
   return (
@@ -49,7 +50,11 @@ const BlogPostCard = ({ post }: { post: BlogPost }) => {
 };
 
 const Blog = () => {
+  const [selectedTag, setSelectedTag] = useState<string>('');
   const { data: posts, isLoading, error } = useBlogPosts();
+  
+  const allTags = posts ? getAllTags(posts) : [];
+  const filteredPosts = posts ? (selectedTag ? filterPostsByTag(posts, selectedTag) : posts) : [];
 
   return (
     <Layout>
@@ -61,6 +66,38 @@ const Blog = () => {
           </p>
         </div>
 
+        {/* Tags filter */}
+        {allTags.length > 0 && (
+          <div className="mb-8">
+            <div className="flex flex-wrap gap-2 justify-center">
+              <button
+                onClick={() => setSelectedTag('')} 
+                className={`px-3 py-1 rounded-full text-sm ${
+                  selectedTag === '' 
+                    ? 'bg-pickleball-blue text-white' 
+                    : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                All
+              </button>
+              
+              {allTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTag(tag)}
+                  className={`px-3 py-1 rounded-full text-sm ${
+                    selectedTag === tag 
+                      ? 'bg-pickleball-blue text-white' 
+                      : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="text-center py-10">
             <p>Loading blog posts...</p>
@@ -69,15 +106,15 @@ const Blog = () => {
           <div className="text-center py-10 text-red-500">
             <p>Failed to load blog posts. Please try again later.</p>
           </div>
-        ) : posts && posts.length > 0 ? (
+        ) : filteredPosts.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {posts.map((post) => (
+            {filteredPosts.map((post) => (
               <BlogPostCard key={post.id} post={post} />
             ))}
           </div>
         ) : (
           <div className="text-center py-10">
-            <p>No blog posts available yet. Check back soon!</p>
+            <p>No blog posts available for the selected filter. Try another tag!</p>
           </div>
         )}
       </div>
