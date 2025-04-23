@@ -85,6 +85,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
       }
     }
   }
+
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader className="pb-2 flex flex-row items-start justify-between">
@@ -126,7 +127,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
           <div className="flex items-center space-x-2">
             <Users className="h-4 w-4 text-muted-foreground" />
             <span>
-              {session.current_registrations ?? 0} / {session.total_spots || session.max_players} registered
+              {(session.current_registrations ?? 0)} / {(session.total_spots || session.max_players)} registered
               {isFull && <span className="ml-2 text-red-500 font-medium">(Full)</span>}
               {session.waitlist_count && session.waitlist_count > 0 && (
                 <span className="ml-2 text-amber-600 font-medium">
