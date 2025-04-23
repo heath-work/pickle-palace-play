@@ -12,14 +12,14 @@ interface SessionParticipantsModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Participant type reflecting joined profile fields
+// Participant type definition
 type Participant = {
   id: string;
   user_id: string;
   status: string;
-  profiles: {
+  profile?: {
+    username: string | null;
     id: string;
-    username: string | null; // using username as email
   } | null;
 };
 
@@ -43,19 +43,46 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
 
     const fetchParticipants = async () => {
       try {
-        // Fetch session_registrations and join profiles table using supabase select relation
-        const { data, error } = await supabase
+        // First fetch all session_registrations
+        const { data: registrations, error: regError } = await supabase
           .from("session_registrations")
-          .select("id, user_id, status, profiles(id, username)")
+          .select("id, user_id, status")
           .eq("session_id", sessionId)
           .not("status", "eq", "cancelled");
 
-        if (error) {
-          console.error("Error fetching session participants:", error);
+        if (regError) {
+          console.error("Error fetching registrations:", regError);
           setParticipants([]);
-        } else {
-          setParticipants(data ?? []);
+          setLoading(false);
+          return;
         }
+
+        // Now get the user profiles separately
+        const participantsWithProfiles = await Promise.all(
+          (registrations || []).map(async (reg) => {
+            // Get user profile from the profiles table
+            const { data: profile, error: profileError } = await supabase
+              .from("profiles")
+              .select("id, username")
+              .eq("id", reg.user_id)
+              .maybeSingle();
+
+            if (profileError) {
+              console.error("Error fetching profile:", profileError);
+              return {
+                ...reg,
+                profile: null
+              };
+            }
+
+            return {
+              ...reg,
+              profile: profile
+            };
+          })
+        );
+
+        setParticipants(participantsWithProfiles);
       } catch (error) {
         console.error("Error in fetchParticipants:", error);
         setParticipants([]);
@@ -86,8 +113,8 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
                 {participants.map((p) => (
                   <li key={p.id} className="py-2 flex items-center justify-between">
                     <div>
-                      {p.profiles?.username || p.user_id}
-                      <span className="ml-2 text-xs text-gray-400">({p.profiles?.id?.slice(0, 8) ?? p.user_id.slice(0,8)}…)</span>
+                      {p.profile?.username || p.user_id}
+                      <span className="ml-2 text-xs text-gray-400">({p.profile?.id?.slice(0, 8) ?? p.user_id.slice(0,8)}…)</span>
                     </div>
                     <Badge className={statusColors[p.status] + " capitalize"}>
                       {p.status}
