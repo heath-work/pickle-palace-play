@@ -5,13 +5,13 @@ import { BlogPost, Category, Author } from '@/types/blog';
 export const authors: Author[] = [
   {
     id: '1',
-    name: 'John Smith',
+    name: 'Heath Taskis',
     image: '/placeholder.svg',
     bio: 'Senior pickleball coach with over 10 years of experience in competitive play.'
   },
   {
     id: '2',
-    name: 'Sarah Johnson',
+    name: 'Heath Taskis',
     image: '/placeholder.svg',
     bio: 'Professional pickleball player and certified instructor.'
   }
