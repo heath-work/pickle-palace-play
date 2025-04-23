@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -183,9 +184,8 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({ courts, onSessi
           <div>
             <Label>Courts (Multi-select)</Label>
             <Select 
-              multiple
               value={formData.court_ids}
-              onValueChange={(value) => setFormData({ ...formData, court_ids: value })}
+              onValueChange={(value: string[]) => setFormData({ ...formData, court_ids: value })}
               required
             >
               <SelectTrigger>
