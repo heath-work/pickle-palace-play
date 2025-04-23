@@ -4,14 +4,10 @@ import { useParams, Link } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { useBlogPost } from '@/hooks/useBlogPosts';
 import { format } from 'date-fns';
-import { getReadingTime } from '@/utils/blogUtils';
 
 const BlogPost = () => {
   const { slug } = useParams<{ slug: string }>();
   const { data: post, isLoading, error } = useBlogPost(slug || '');
-  
-  // Calculate reading time if post body exists
-  const readingTime = post?.body ? getReadingTime(post.body) : 0;
 
   return (
     <Layout>
@@ -43,10 +39,6 @@ const BlogPost = () => {
                   <time dateTime={post.publishedAt} className="text-sm">
                     {format(new Date(post.publishedAt), 'MMMM dd, yyyy')}
                   </time>
-                )}
-                
-                {readingTime > 0 && (
-                  <span className="text-sm ml-4">• {readingTime} min read</span>
                 )}
                 
                 {post.categories && post.categories.length > 0 && (

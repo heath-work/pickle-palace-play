@@ -7,7 +7,8 @@ export function useBlogPosts() {
   return useQuery({
     queryKey: ['blog-posts'],
     queryFn: async (): Promise<BlogPost[]> => {
-      // Return the preloaded blog posts instantly
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 500));
       return blogPosts;
     },
   });
@@ -17,7 +18,8 @@ export function useBlogPost(slug: string) {
   return useQuery({
     queryKey: ['blog-post', slug],
     queryFn: async (): Promise<BlogPost | undefined> => {
-      // Return the preloaded blog post by slug
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 500));
       return getPostBySlug(slug);
     },
     enabled: !!slug,
