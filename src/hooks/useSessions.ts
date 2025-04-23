@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -27,9 +26,6 @@ export function useSessions() {
         throw error;
       }
 
-      // For sessions with multiple courts, assume max_players is per court
-      // You may want to store number of courts as a field in the session if not already
-
       // Calculate total_spots and count current registrations
       const sessionsWithRegistrationCount = await Promise.all(
         (data || []).map(async (session) => {
@@ -51,13 +47,10 @@ export function useSessions() {
               } as Session;
             }
 
-            // If there's a `court_count` field, use it; if court_id is an array, use length; otherwise, use 1
-            // For now, default to 1 court unless multi-court data is there
+            // If court_id is an array, use its length; otherwise, use 1
             let courtMultiplier = 1;
             if (Array.isArray(session.court_id)) {
               courtMultiplier = session.court_id.length;
-            } else if (typeof session.court_count === 'number') {
-              courtMultiplier = session.court_count;
             }
 
             // Fallback: if none exists, try to guess from title (not recommended, but to support current schema)
