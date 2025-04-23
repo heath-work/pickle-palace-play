@@ -6,10 +6,10 @@ export async function getSessionParticipants(sessionId: string) {
   try {
     console.log("Fetching session participants for session:", sessionId);
     
-    // First, get all registrations for this session
+    // First, get all registrations for this session - use simple query without joins
     const { data: registrations, error: regError } = await supabase
       .from('session_registrations')
-      .select('id, user_id, status')
+      .select('*')  // Select all fields
       .eq('session_id', sessionId)
       .not('status', 'eq', 'cancelled');
     
@@ -22,6 +22,8 @@ export async function getSessionParticipants(sessionId: string) {
       console.log("No registrations found for session:", sessionId);
       return [];
     }
+
+    console.log("Found registrations:", registrations.length);
 
     // Get all user IDs to fetch profiles
     const userIds = registrations.map(reg => reg.user_id);
@@ -50,7 +52,7 @@ export async function getSessionParticipants(sessionId: string) {
       id: reg.id,
       user_id: reg.user_id,
       status: reg.status,
-      username: userMap.get(reg.user_id) || null
+      username: userMap.get(reg.user_id) || `User-${reg.user_id.substring(0, 6)}`
     }));
     
     console.log("Processed participants:", participants);

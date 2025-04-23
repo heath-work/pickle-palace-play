@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +48,14 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
         const participantsData = await getSessionParticipants(sessionId);
         
         console.log("Participants data:", participantsData);
-        setParticipants(participantsData);
+        
+        if (Array.isArray(participantsData)) {
+          setParticipants(participantsData);
+        } else {
+          console.error("Unexpected participants data format:", participantsData);
+          setParticipants([]);
+        }
+        
         setLoading(false);
       } catch (error) {
         console.error("Error in fetchParticipants:", error);
@@ -56,7 +64,7 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
       }
     };
 
-    // Fallback method remains the same for robustness
+    // Fallback method for robustness
     const fetchParticipantsFallback = async () => {
       try {
         console.log("Using fallback method to fetch participants");
@@ -110,7 +118,7 @@ export const SessionParticipantsModal: React.FC<SessionParticipantsModalProps> =
           id: reg.id,
           user_id: reg.user_id,
           status: reg.status,
-          username: userMap.get(reg.user_id) || null
+          username: userMap.get(reg.user_id) || `User-${reg.user_id.substring(0, 6)}`
         }));
 
         console.log("Combined participants:", combinedParticipants);
