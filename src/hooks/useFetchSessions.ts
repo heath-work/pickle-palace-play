@@ -11,7 +11,13 @@ export const useFetchSessions = (setSessions: (s: Session[]) => void, setIsLoadi
     setIsLoading(true);
     try {
       // Get current AEST date YYYY-MM-DD
-      const aestDate = getAestDate();
+      const now = new Date();
+      const aestOffset = 10 * 60;
+      const utcOffset = now.getTimezoneOffset();
+      const totalOffsetMinutes = utcOffset + aestOffset;
+      const aestDate = new Date(now.getTime() + totalOffsetMinutes * 60000)
+        .toISOString()
+        .split('T')[0];
 
       // Archive past sessions
       await supabase
@@ -25,6 +31,7 @@ export const useFetchSessions = (setSessions: (s: Session[]) => void, setIsLoadi
         .from('sessions')
         .select('*, courts(name, type)')
         .eq('is_active', true)
+        .gte('date', aestDate) // <-- Only fetch present/future
         .order('date', { ascending: true });
 
       if (error) {

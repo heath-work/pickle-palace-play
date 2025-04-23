@@ -1,16 +1,30 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useSessions } from '@/hooks/useSessions';
 import { useAuth } from '@/contexts/AuthContext';
-import { Clock, Users, MapPin } from 'lucide-react';
+import { Clock, Users, MapPin, Trash2, Edit } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import CreateSessionModal from './CreateSessionModal';
 import { Court } from '@/types/supabase';
 import { Session } from '@/types/sessions';
 import { supabase } from '@/integrations/supabase/client';
 import { SessionParticipantsModal } from "./SessionParticipantsModal";
+import EditSessionModal from './EditSessionModal';
+import { useDeleteSession } from '@/hooks/useDeleteSession';
+import { useEditSession } from '@/hooks/useEditSession';
+
+function getAestDateString() {
+  // Returns current date in 'YYYY-MM-DD' for AEST
+  const now = new Date();
+  const aestOffset = 10 * 60; // minutes
+  const utcOffset = now.getTimezoneOffset();
+  const totalOffsetMinutes = utcOffset + aestOffset;
+  const aestNow = new Date(now.getTime() + totalOffsetMinutes * 60000);
+  return aestNow.toISOString().split('T')[0];
+}
 
 const SessionList = () => {
   const { sessions, userSessions, registerForSession, cancelSessionRegistration, isLoading, fetchSessions } = useSessions();
@@ -19,13 +33,16 @@ const SessionList = () => {
   const [courts, setCourts] = useState<Court[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [modalSessionId, setModalSessionId] = useState<string | null>(null);
+  const [editModal, setEditModal] = useState<{ open: boolean; session: Session | null }>({ open: false, session: null });
+
+  const deleteSession = useDeleteSession(fetchSessions);
+  const editSession = useEditSession(fetchSessions);
 
   useEffect(() => {
     const fetchCourts = async () => {
       const { data } = await supabase.from('courts').select('*');
       if (data) setCourts(data);
     };
-    
     fetchCourts();
   }, []);
 
@@ -64,16 +81,26 @@ const SessionList = () => {
         .maybeSingle();
       setIsAdmin(!!data);
     };
-
     checkAdminStatus();
   }, [user]);
 
-  const filteredSessions = selectedFilter === 'my' 
+  // FILTER: Hide sessions in the past (AEST)
+  const aestDate = getAestDateString();
+  const filteredSessions = (selectedFilter === 'my' 
     ? userSessions.map(us => us.session as Session).filter(Boolean)
-    : sessions;
+    : sessions
+  ).filter((session) => session.date >= aestDate);
 
   const handleSessionCreated = (newSession: Session) => {
     fetchSessions();
+  };
+
+  // Handler for saving session edits
+  const handleEditSave = async (data: Partial<Session>) => {
+    if (editModal.session) {
+      await editSession(editModal.session.id, data);
+      setEditModal({ open: false, session: null });
+    }
   };
 
   return (
@@ -94,7 +121,6 @@ const SessionList = () => {
             My Sessions
           </Button>
         </div>
-        
         {user && (
           <CreateSessionModal courts={courts} onSessionCreated={handleSessionCreated} />
         )}
@@ -110,11 +136,33 @@ const SessionList = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredSessions.map((session) => (
             <Card key={session.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle>{session.title}</CardTitle>
-                <div className="text-sm text-muted-foreground">
-                  {session.courts?.name} - {session.courts?.type} Court
+              <CardHeader className="pb-2 flex flex-row items-start justify-between">
+                <div>
+                  <CardTitle>{session.title}</CardTitle>
+                  <div className="text-sm text-muted-foreground">
+                    {session.courts?.name} - {session.courts?.type} Court
+                  </div>
                 </div>
+                {isAdmin && (
+                  <div className="flex flex-row gap-2 items-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditModal({ open: true, session })}
+                      aria-label="Edit"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteSession(session.id)}
+                      aria-label="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -184,6 +232,16 @@ const SessionList = () => {
           sessionId={modalSessionId}
           open={!!modalSessionId}
           onOpenChange={(open) => setModalSessionId(open ? modalSessionId : null)}
+        />
+      )}
+      {editModal.session && (
+        <EditSessionModal
+          session={editModal.session}
+          open={editModal.open}
+          onOpenChange={(open) =>
+            setEditModal(open ? editModal : { open: false, session: null })
+          }
+          onSave={handleEditSave}
         />
       )}
     </div>
