@@ -2,18 +2,17 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '@/components/Layout';
-import { urlFor } from '@/integrations/sanity/client';
-import { useSanityPosts } from '@/hooks/useSanityPosts';
+import { useBlogPosts } from '@/hooks/useBlogPosts';
 import { format } from 'date-fns';
-import { BlogPost } from '@/types/sanity';
+import { BlogPost } from '@/types/blog';
 
 const BlogPostCard = ({ post }: { post: BlogPost }) => {
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
       {post.mainImage && (
         <img
-          src={urlFor(post.mainImage.asset._ref)}
-          alt={post.mainImage.alt || post.title}
+          src={post.mainImage}
+          alt={post.title}
           className="w-full h-48 object-cover"
         />
       )}
@@ -38,7 +37,7 @@ const BlogPostCard = ({ post }: { post: BlogPost }) => {
         
         <div className="mt-4">
           <Link 
-            to={`/blog/${post.slug.current}`}
+            to={`/blog/${post.slug}`}
             className="text-pickleball-blue hover:underline font-medium"
           >
             Read More →
@@ -50,7 +49,7 @@ const BlogPostCard = ({ post }: { post: BlogPost }) => {
 };
 
 const Blog = () => {
-  const { data: posts, isLoading, error } = useSanityPosts();
+  const { data: posts, isLoading, error } = useBlogPosts();
 
   return (
     <Layout>
@@ -73,7 +72,7 @@ const Blog = () => {
         ) : posts && posts.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {posts.map((post) => (
-              <BlogPostCard key={post._id} post={post} />
+              <BlogPostCard key={post.id} post={post} />
             ))}
           </div>
         ) : (

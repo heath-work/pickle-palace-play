@@ -2,13 +2,12 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Layout from '@/components/Layout';
-import { urlFor } from '@/integrations/sanity/client';
-import { useSanityPost } from '@/hooks/useSanityPosts';
+import { useBlogPost } from '@/hooks/useBlogPosts';
 import { format } from 'date-fns';
 
 const BlogPost = () => {
   const { slug } = useParams<{ slug: string }>();
-  const { data: post, isLoading, error } = useSanityPost(slug || '');
+  const { data: post, isLoading, error } = useBlogPost(slug || '');
 
   return (
     <Layout>
@@ -54,7 +53,7 @@ const BlogPost = () => {
                 <div className="flex items-center">
                   {post.author.image && (
                     <img
-                      src={urlFor(post.author.image.asset._ref)}
+                      src={post.author.image}
                       alt={post.author.name}
                       className="w-10 h-10 rounded-full mr-3"
                     />
@@ -67,21 +66,16 @@ const BlogPost = () => {
             {post.mainImage && (
               <div className="mb-8">
                 <img
-                  src={urlFor(post.mainImage.asset._ref)}
-                  alt={post.mainImage.alt || post.title}
+                  src={post.mainImage}
+                  alt={post.title}
                   className="w-full h-auto max-h-96 object-cover rounded-lg"
                 />
               </div>
             )}
             
-            <div className="prose prose-lg max-w-none">
-              {/* This is where we would render the Portable Text content */}
-              {/* For now, just displaying the excerpt */}
-              <p>{post.excerpt}</p>
-              <p className="text-gray-500 italic mt-4">
-                Note: To fully render the Portable Text content, you'll need to install 
-                and configure @portabletext/react
-              </p>
+            <div className="prose prose-lg max-w-none prose-headings:text-pickleball-blue prose-a:text-pickleball-blue">
+              {/* Render HTML content safely */}
+              <div dangerouslySetInnerHTML={{ __html: post.body || '' }} />
             </div>
           </article>
         )}
