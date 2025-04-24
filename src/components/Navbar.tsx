@@ -23,33 +23,34 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow-sm sticky top-0 z-50">
+    <nav className="sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link to="/" className="flex-shrink-0 flex items-center">
-              <span className="text-2xl font-bold text-pickleball-blue">Pickle Ballers Club</span>
+            <Link to="/" className="flex-shrink-0 flex items-center site-logo">
+              <span className="text text-2xl font-bold text-pickleball-blue">Pickle Ballers Club</span>
+              <img src="public/images/pickle-ballers-club_smiley-logo-device.svg" alt="Pickle Ballers Club Court Logo" width="100" />
             </Link>
           </div>
           
           {/* Desktop nav */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link to="/" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
+            <Link to="/" className="px-3 py-2 text-white hover:text-pickleball-blue transition-colors">
               Home
             </Link>
-            <Link to="/about" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
+            <Link to="/about" className="px-3 py-2 text-white hover:text-pickleball-blue transition-colors">
               About
             </Link>
-            <Link to="/membership" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
+            <Link to="/membership" className="px-3 py-2 text-white hover:text-pickleball-blue transition-colors">
               Membership
             </Link>
-            <Link to="/booking" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
+            <Link to="/booking" className="px-3 py-2 text-white hover:text-pickleball-blue transition-colors">
               Book a Court
             </Link>
-            <Link to="/group-play" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
+            <Link to="/group-play" className="px-3 py-2 text-white hover:text-pickleball-yellow transition-colors">
               Group Play
             </Link>
-            <Link to="/blog" className="px-3 py-2 text-gray-700 hover:text-pickleball-blue transition-colors">
+            <Link to="/blog" className="px-3 py-2 text-white hover:text-pickleball-blue transition-colors">
               Blog
             </Link>
             
@@ -72,7 +73,7 @@ const Navbar = () => {
                   </Button>
                 </Link>
                 <Link to="/auth/signup">
-                  <Button className="bg-pickleball-blue hover:bg-blue-600 text-white">
+                  <Button className="bg-pickleball-blue hover:bg-blue-600 text-black">
                     Sign Up
                   </Button>
                 </Link>

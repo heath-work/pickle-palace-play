@@ -65,15 +65,15 @@ const Index = () => {
             <div className="mt-8 flex justify-center">
               <div className="inline-flex rounded-md shadow">
                 <Link to="/booking">
-                  <Button className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-pickleball-blue bg-white hover:bg-gray-50">
+                  <Button className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-xl text-pickleball-blue bg-white hover:bg-gray-50">
                     Book a Court
                   </Button>
                 </Link>
               </div>
               <div className="ml-3 inline-flex">
                 <Link to="/membership">
-                  <Button variant="outline" className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white border-white hover:bg-pickleball-blue">
-                    View Memberships
+                  <Button variant="outline" className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-xl text-white border-white hover:bg-pickleball-blue">
+                    Memberships
                   </Button>
                 </Link>
               </div>

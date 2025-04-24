@@ -64,7 +64,7 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				pickleball: {
-					blue: '#3B82F6',
+					blue: '#FFF20F',
 					green: '#10B981',
 					orange: '#F97316',
 				}
