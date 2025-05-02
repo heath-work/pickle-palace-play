@@ -12,12 +12,12 @@ const AboutPage = () => {
             <h1 className=" hero">
             <span class="block">More than a game.</span>
             <span class="block">More than a club.</span>
-            <span class="block">It’s a movement.</span>
+            <span class="block">It's a movement.</span>
             </h1>
             <p className="mt-4 text-xl text-gray-500 max-w-2xl mx-auto">
-              Some say we’re obsessed. Addicts. Zealots… Maybe they’re right. Because when you step onto the court the world fades. The only thing that matters is the next drop, the perfect backhand flick, the chase for that impossible ATP.
+              Some say we're obsessed. Addicts. Zealots… Maybe they're right. Because when you step onto the court the world fades. The only thing that matters is the next drop, the perfect backhand flick, the chase for that impossible ATP.
               <br/><br/>We believe in playing hard and laughing harder. We believe in community—the kind that welcomes you like family and battles you like rivals. We believe in pickleball, and we know you do too. That’s why you’re here.
-              <br/><br/>Welcome. You’re one of us now.
+              <br/><br/>Welcome. You're one of us now.
             </p>
           </div>
         </div>

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import Hero from '@/components/Hero';
+import Hypno from '@/components/Hypno';
 import Features from '@/components/Features';
 import MembershipPlans from '@/components/MembershipPlans';
 import UpcomingSessions from '@/components/UpcomingSessions';
@@ -10,6 +11,7 @@ import { Link } from 'react-router-dom';
 import { useSessions } from '@/hooks/useSessions';
 import { Session } from '@/types/sessions';
 import { format, isToday, parseISO } from 'date-fns';
+
 
 const Index = () => {
   const { sessions, isLoading } = useSessions();
@@ -44,8 +46,8 @@ const Index = () => {
   return (
     <Layout>
       <Hero />
-      <Features />
-      
+      {/* <Features /> */}
+      <Hypno />
       <UpcomingSessions 
         sessions={upcomingSessions}
         isLoading={isLoading}

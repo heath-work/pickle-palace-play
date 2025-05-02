@@ -15,12 +15,14 @@ const Hero = () => {
           <div className="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 lg:mt-16 lg:px-8">
             <div className="text-center lg:text-left">
               <img src="public/images/pbc-logo-yellow.svg" width="200" class="Pickle Ballers Club - whiffle ball shaped logo"/>
-              <h1 className="hero text-pickleball-blue">
+              <h1 className="display-none">Sunshine Coast Pickleball. Come & play. Baringa now open</h1>
+              <h2 className="title1 hero text-pickleball-blue">
                 <span className="block">FUN. FITNESS. COMMUNITY.</span>
                 {/* <span className="block text-pickleball-blue">Pickle Palace</span> */}
-              </h1>
-              <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto lg:mx-0 md:mt-5 md:text-xl">
-                The premier destination for pickleball enthusiasts. State-of-the-art courts, expert coaching, and a vibrant community await you.
+              </h2>
+              <h2>Totally not a cult...</h2>
+              <p className="mt-3 text-base text-white sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto lg:mx-0 md:mt-5 md:text-xl">
+                The premier destination for pickleball enthusiasts on the sunshien coast. State-of-the-art courts, expert coaching, and good vibes.
               </p>
               <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
                 <div className="rounded-md shadow">
@@ -34,7 +36,7 @@ const Hero = () => {
                 <div className="mt-3 sm:mt-0 sm:ml-3">
                   <Link to="/membership">
                     <Button variant="outline" className="w-full flex items-center justify-center px-8 py-3 text-base font-medium rounded-md text-pickleball-blue bg-white hover:bg-gray-50 md:py-4 md:text-lg md:px-10 secondary">
-                      View Memberships
+                      Memberships
                     </Button>
                   </Link>
                 </div>

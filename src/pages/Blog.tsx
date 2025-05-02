@@ -8,7 +8,7 @@ import { BlogPost } from '@/types/blog';
 
 const BlogPostCard = ({ post }: { post: BlogPost }) => {
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+    <div className="bg-black rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
       {post.mainImage && (
         <img
           src={post.mainImage}
@@ -53,9 +53,9 @@ const Blog = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="px-4 sm:px-6 lg:px-8 py-12 bg-black">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-pickleball-blue">Propaganda</h1>
+          <h1 className="superhero text-center text-pickleball-blue">Propaganda</h1>
           <p className="mt-4 text-xl text-gray-600">
             Latest news, tips, and stories from our pickleball community
           </p>

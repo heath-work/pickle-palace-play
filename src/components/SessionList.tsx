@@ -133,7 +133,7 @@ const SessionList = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 ">
       <div className="flex justify-between items-center mb-6">
         <div className="flex gap-2">
           <Button

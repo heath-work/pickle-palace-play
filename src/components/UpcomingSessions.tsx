@@ -18,7 +18,7 @@ const UpcomingSessions = ({ sessions, isLoading }: UpcomingSessionsProps) => {
     return (
       <div className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-semibold mb-6">Upcoming Sessions</h2>
+          <h2 className="title1 font-semibold mb-6">Sessions</h2>
           <p className="text-center py-4">Loading sessions...</p>
         </div>
       </div>
@@ -30,13 +30,10 @@ const UpcomingSessions = ({ sessions, isLoading }: UpcomingSessionsProps) => {
   }
 
   return (
-    <div className="py-8 bg-gray-50">
+    <div className="upcoming-sessions py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold">Upcoming Sessions</h2>
-          <Link to="/booking">
-            <Button variant="outline">View All Sessions</Button>
-          </Link>
+          <h2 className="title1 superhero text-align-center">Sessions</h2>
         </div>
         <div className="grid md:grid-cols-3 gap-4">
           {sessions.map((session) => {
@@ -49,13 +46,14 @@ const UpcomingSessions = ({ sessions, isLoading }: UpcomingSessionsProps) => {
                   <div className="text-sm text-muted-foreground">
                     {session.courts?.name} - {session.courts?.type} Court
                   </div>
+                  <h3 className="title2">{session.start_time}</h3>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <span>
-                        {format(parseISO(session.date), 'PPP')} at {session.start_time}
+                        {format(parseISO(session.date), 'PPP')}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -84,6 +82,9 @@ const UpcomingSessions = ({ sessions, isLoading }: UpcomingSessionsProps) => {
             );
           })}
         </div>
+        <Link to="/booking">
+            <Button variant="outline" className="poppins-semi">View All Sessions</Button>
+          </Link>
       </div>
     </div>
   );

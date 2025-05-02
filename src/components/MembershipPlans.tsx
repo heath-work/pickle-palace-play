@@ -40,27 +40,27 @@ const plans = [
     href: '/membership#basic',
     productId: STRIPE_PRODUCTS.basic
   },
-  {
-    name: 'Premium',
-    price: '$18',
-    period: 'per month',
-    description: 'Our most popular plan for regular players.',
-    features: [
-      'All Basic features',
-      'Access during all hours',
-      'Priority court booking (3 days ahead)',
-      '10% discount on court rentals',
-      '15% discount on sessions',
-      'Free equipment rental',
-      '10% discount at pro shop',
-    ],
-    buttonText: 'Sign Up Now',
-    buttonVariant: 'default',
-    color: 'border-pickleball-blue shadow-lg',
-    mostPopular: true,
-    href: '/membership#premium',
-    productId: STRIPE_PRODUCTS.premium
-  },
+  // {
+  //   name: 'Premium',
+  //   price: '$18',
+  //   period: 'per month',
+  //   description: 'Our most popular plan for regular players.',
+  //   features: [
+  //     'All Basic features',
+  //     'Access during all hours',
+  //     'Priority court booking (3 days ahead)',
+  //     '10% discount on court rentals',
+  //     '15% discount on sessions',
+  //     'Free equipment rental',
+  //     '10% discount at pro shop',
+  //   ],
+  //   buttonText: 'Sign Up Now',
+  //   buttonVariant: 'default',
+  //   color: 'border-pickleball-blue shadow-lg',
+  //   mostPopular: true,
+  //   href: '/membership#premium',
+  //   productId: STRIPE_PRODUCTS.premium
+  // },
   {
     name: 'Elite',
     price: '$35',
@@ -317,8 +317,8 @@ const MembershipPlans = () => {
   };
 
   return (
-    <div className="py-12 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="py-12 bg-court-green">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 membership-plans">
         {/* <div className="text-center">
           <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
             Membership Plans
@@ -328,7 +328,11 @@ const MembershipPlans = () => {
           </p>
         </div> */}
 
-        <div className="mt-12 space-y-4 sm:mt-16 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-6 lg:max-w-4xl lg:mx-auto xl:max-w-none xl:grid-cols-4">
+        <div className="text-center">
+          <h2 className="title1 superhero text-align-center">JOIN <span className="strike-thru op-50">THE CULT</span></h2>
+        </div>
+
+        <div className=" space-y-4 sm:mt-16 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-6 lg:max-w-4xl lg:mx-auto xl:max-w-none xl:grid-cols-3">
           {plans.map((plan) => (
             <div
               key={plan.name}
